@@ -19,6 +19,13 @@ import {
   type RiskSummary,
   type SystemStatus,
 } from "@/lib/api";
+
+const ZERO_RISK: RiskSummary = {
+  total_revenue_at_risk_usd: 0,
+  by_change_type: [],
+  by_service_line: [],
+  by_payer: [],
+};
 import RiskSummaryCards from "@/components/RiskSummaryCards";
 import RevenueRiskChart from "@/components/RevenueRiskChart";
 import ChangeFeed from "@/components/ChangeFeed";
@@ -46,8 +53,8 @@ export default function HomePage() {
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [isCleared, setIsCleared] = useState(false);
-  // Tracks when a demo was triggered after a clear — only show events after this time
-  const [showAfterTimestamp, setShowAfterTimestamp] = useState<number | null>(null);
+  // After a post-clear demo, holds the IDs that existed before — only new events shown
+  const [knownEventIds, setKnownEventIds] = useState<Set<string> | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -91,27 +98,31 @@ export default function HomePage() {
   const filteredChanges = isCleared
     ? []
     : allChanges.filter((event) => {
-        const ts = new Date(event.created_at).getTime();
-        // After a post-clear demo trigger, only show events created after that moment
-        if (showAfterTimestamp !== null && ts < showAfterTimestamp - 1000) return false;
+        // After a post-clear demo, hide every event that existed before the demo was triggered
+        if (knownEventIds !== null && knownEventIds.has(event.event_id)) return false;
         if (filterChangeType && event.change_type !== filterChangeType) return false;
         if (filterPayer && event.payer !== filterPayer) return false;
         if (filterServiceLine && event.service_line !== filterServiceLine) return false;
         if (filterDateFrom) {
           const from = new Date(filterDateFrom).getTime();
+          const ts = new Date(event.created_at).getTime();
           if (ts < from) return false;
         }
         if (filterDateTo) {
           const to = new Date(`${filterDateTo}T23:59:59`).getTime();
+          const ts = new Date(event.created_at).getTime();
           if (ts > to) return false;
         }
         return true;
       });
 
   const deferredChanges = useDeferredValue(filteredChanges);
-  const topPayer = risk?.by_payer?.[0] ?? null;
-  const topServiceLine = risk?.by_service_line?.[0] ?? null;
-  const topChangeType = risk?.by_change_type?.[0] ?? null;
+
+  // When cleared: metrics show zero. When demo-after-clear: metrics reflect only new event.
+  const displayRisk = isCleared ? ZERO_RISK : (risk ?? ZERO_RISK);
+  const topPayer = isCleared ? null : (displayRisk.by_payer?.[0] ?? null);
+  const topServiceLine = isCleared ? null : (displayRisk.by_service_line?.[0] ?? null);
+  const topChangeType = isCleared ? null : (displayRisk.by_change_type?.[0] ?? null);
 
   function handleClear() {
     setFilterChangeType("");
@@ -120,23 +131,25 @@ export default function HomePage() {
     setFilterDateFrom("");
     setFilterDateTo("");
     setIsCleared(true);
-    setShowAfterTimestamp(null);
+    setKnownEventIds(null);
   }
 
   function restoreFeed() {
     setIsCleared(false);
-    setShowAfterTimestamp(null);
+    setKnownEventIds(null);
   }
 
   async function handleTriggerDemo() {
     setDemoLoading(true);
     setDemoMessage("");
-    const triggerTime = Date.now();
+    // Snapshot the IDs of all events currently in the feed before the demo fires.
+    // After the demo we exclude these — only the brand-new event shows.
+    const snapshot = new Set(allChanges.map((e) => e.event_id));
     try {
       const response = await triggerDemo();
       setDemoMessage(response.message);
       setIsCleared(false);
-      setShowAfterTimestamp(triggerTime);
+      setKnownEventIds(snapshot);
       setTimeout(refresh, 3000);
     } catch {
       setDemoMessage("Demo trigger failed. Check that the backend is running.");
@@ -228,7 +241,7 @@ export default function HomePage() {
       {demoMessage ? <div className="demo-notice">{demoMessage}</div> : null}
 
       <section aria-label="Risk Summary Metrics">
-        <RiskSummaryCards risk={risk} status={status} loading={loading} />
+        <RiskSummaryCards risk={displayRisk} status={status} loading={loading} />
       </section>
 
       <section className="control-deck">
@@ -352,7 +365,7 @@ export default function HomePage() {
       </section>
 
       <section aria-label="Revenue Risk Charts">
-        <RevenueRiskChart risk={risk} />
+        <RevenueRiskChart risk={displayRisk} />
       </section>
 
       <section className="feed-section">
