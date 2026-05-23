@@ -50,21 +50,28 @@ export default function HomePage() {
 
   /**
    * isCleared: persisted in localStorage so page reloads respect the cleared state.
-   * true  → feed blank until a filter is explicitly selected
-   * false → feed shows all / filtered events
+   * IMPORTANT: always initialise to false for SSR — read localStorage in useEffect
+   * after mount to avoid React hydration mismatch errors.
    */
-  const [isCleared, setIsCleared] = useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem(LS_KEY) === "true";
-  });
+  const [isCleared, setIsCleared] = useState(false);
 
-  // Sync isCleared → localStorage whenever it changes
+  // After first client-side mount, restore cleared state from localStorage
+  useEffect(() => {
+    if (localStorage.getItem(LS_KEY) === "true") {
+      setIsCleared(true);
+    }
+  }, []);
+
+  // Persist isCleared → localStorage on every change
   useEffect(() => {
     localStorage.setItem(LS_KEY, String(isCleared));
   }, [isCleared]);
 
   const hasAnyFilter =
     !!filterChangeType || !!filterPayer || !!filterDateFrom || !!filterDateTo;
+
+  // When cleared, show zero metrics — only real data if feed is visible
+  const displayRisk = isCleared ? null : risk;
 
   // Derived: apply all active filters synchronously
   const filteredChanges: ChangeEventSummary[] = isCleared
@@ -189,14 +196,14 @@ export default function HomePage() {
         <div className="demo-notice">✅ {demoMessage}</div>
       )}
 
-      {/* Metric Cards */}
+      {/* Metric Cards — zeroed when cleared */}
       <section aria-label="Risk Summary Metrics">
-        <RiskSummaryCards risk={risk} status={status} loading={loading} />
+        <RiskSummaryCards risk={displayRisk} status={status} loading={loading} />
       </section>
 
-      {/* Charts */}
+      {/* Charts — zeroed when cleared */}
       <section aria-label="Revenue Risk Charts">
-        <RevenueRiskChart risk={risk} />
+        <RevenueRiskChart risk={displayRisk} />
       </section>
 
       {/* Change Feed */}
