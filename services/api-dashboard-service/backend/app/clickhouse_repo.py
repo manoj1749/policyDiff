@@ -27,6 +27,8 @@ def get_client() -> clickhouse_connect.driver.Client:
         username=os.getenv("CLICKHOUSE_USER", "default"),
         password=os.getenv("CLICKHOUSE_PASSWORD", ""),
         database=os.getenv("CLICKHOUSE_DB", "policydiff"),
+        secure=os.getenv("CLICKHOUSE_SECURE", "false").lower() == "true",
+        verify=os.getenv("CLICKHOUSE_VERIFY", "true").lower() == "true",
     )
 
 

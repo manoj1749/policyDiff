@@ -1045,3 +1045,51 @@ body {
   padding: 64px 24px;
   color: var(--text-muted);
 }
+
+/* ============================================================
+   CLEARED STATE
+   ============================================================ */
+
+.cleared-state {
+  text-align: center;
+  padding: 72px 24px;
+  color: var(--text-muted);
+  animation: fadeIn 250ms ease;
+}
+
+.cleared-icon {
+  font-size: 52px;
+  display: block;
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.cleared-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.cleared-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* ============================================================
+   DATE FILTER INPUT
+   ============================================================ */
+
+.filter-date {
+  padding: 5px 10px;
+  color-scheme: dark;
+  min-width: 130px;
+}
+
+.filter-date::-webkit-calendar-picker-indicator {
+  filter: invert(0.6);
+  cursor: pointer;
+}

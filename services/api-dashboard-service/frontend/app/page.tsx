@@ -1,8 +1,11 @@
 /**
  * app/page.tsx — PolicyDiff Home Dashboard
  *
- * Auto-refreshes every NEXT_PUBLIC_REFRESH_INTERVAL_SECONDS (default 10s).
- * Shows metric cards, revenue charts, and the live change feed.
+ * Filter behaviours:
+ *  - Default: show all events
+ *  - After Clear: show nothing (isCleared=true) until a filter is explicitly set
+ *  - Any filter selection restores the feed for that subset
+ *  - Date range filter works alongside payer/type filters
  */
 
 "use client";
@@ -23,24 +26,57 @@ import RevenueRiskChart from "@/components/RevenueRiskChart";
 import ChangeFeed from "@/components/ChangeFeed";
 
 export default function HomePage() {
-  const [changes, setChanges] = useState<ChangeEventSummary[]>([]);
+  const [allChanges, setAllChanges] = useState<ChangeEventSummary[]>([]);
   const [risk, setRisk] = useState<RiskSummary | null>(null);
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const [demoMessage, setDemoMessage] = useState("");
   const [demoLoading, setDemoLoading] = useState(false);
+
+  // Filters
   const [filterChangeType, setFilterChangeType] = useState("");
   const [filterPayer, setFilterPayer] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+
+  /**
+   * isCleared: when true, the feed is intentionally blank.
+   * Cleared by clicking "Clear". Reset back to false when any filter is explicitly set.
+   */
+  const [isCleared, setIsCleared] = useState(false);
+
+  const hasAnyFilter =
+    !!filterChangeType || !!filterPayer || !!filterDateFrom || !!filterDateTo;
+
+  // Derived: apply all active filters synchronously
+  const filteredChanges: ChangeEventSummary[] = isCleared
+    ? []
+    : allChanges.filter((e) => {
+        if (filterChangeType && e.change_type !== filterChangeType) return false;
+        if (filterPayer && e.payer !== filterPayer) return false;
+        if (filterDateFrom) {
+          const from = new Date(filterDateFrom).getTime();
+          const ts = new Date(e.created_at).getTime();
+          if (ts < from) return false;
+        }
+        if (filterDateTo) {
+          // include the full "to" day by going to end of day
+          const to = new Date(filterDateTo + "T23:59:59").getTime();
+          const ts = new Date(e.created_at).getTime();
+          if (ts > to) return false;
+        }
+        return true;
+      });
 
   const refresh = useCallback(async () => {
     try {
       const [c, r, s] = await Promise.all([
-        fetchChanges({ limit: 50, change_type: filterChangeType || undefined, payer: filterPayer || undefined }),
+        fetchChanges({ limit: 50 }),
         fetchRiskSummary(),
         fetchSystemStatus(),
       ]);
-      setChanges(c);
+      setAllChanges(c);
       setRisk(r);
       setStatus(s);
       setLastRefresh(new Date());
@@ -49,14 +85,40 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
-  }, [filterChangeType, filterPayer]);
+  }, []);
 
-  // Initial load + interval
   useEffect(() => {
     refresh();
     const interval = setInterval(refresh, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [refresh]);
+
+  // Clear: hide everything. User must explicitly pick a filter to see events.
+  const handleClear = () => {
+    setFilterChangeType("");
+    setFilterPayer("");
+    setFilterDateFrom("");
+    setFilterDateTo("");
+    setIsCleared(true);
+  };
+
+  // Any filter change un-clears the feed
+  const handleChangeType = (v: string) => {
+    setFilterChangeType(v);
+    setIsCleared(false);
+  };
+  const handlePayer = (v: string) => {
+    setFilterPayer(v);
+    setIsCleared(false);
+  };
+  const handleDateFrom = (v: string) => {
+    setFilterDateFrom(v);
+    setIsCleared(false);
+  };
+  const handleDateTo = (v: string) => {
+    setFilterDateTo(v);
+    setIsCleared(false);
+  };
 
   const handleTriggerDemo = async () => {
     setDemoLoading(true);
@@ -64,9 +126,11 @@ export default function HomePage() {
     try {
       const res = await triggerDemo();
       setDemoMessage(res.message);
+      // Restore feed and refresh after a moment
+      setIsCleared(false);
       setTimeout(refresh, 3000);
-    } catch (err) {
-      setDemoMessage("Demo trigger failed — check that ClickHouse is running.");
+    } catch {
+      setDemoMessage("Demo trigger failed — check that the backend is running.");
     } finally {
       setDemoLoading(false);
     }
@@ -74,7 +138,7 @@ export default function HomePage() {
 
   return (
     <div className="page-root">
-      {/* ── Header ── */}
+      {/* Header */}
       <header className="dashboard-header">
         <div className="header-left">
           <div className="logo-mark">PD</div>
@@ -83,7 +147,6 @@ export default function HomePage() {
             <p className="dashboard-subtitle">Payer Policy Change Monitor</p>
           </div>
         </div>
-
         <div className="header-right">
           {lastRefresh && (
             <span className="refresh-ts">
@@ -99,38 +162,36 @@ export default function HomePage() {
             disabled={demoLoading}
             id="trigger-demo-btn"
           >
-            {demoLoading ? "⏳ Triggering…" : "⚡ Trigger Demo"}
+            {demoLoading ? "⏳ Simulating…" : "⚡ Trigger Demo"}
           </button>
         </div>
       </header>
 
       {demoMessage && (
-        <div className="demo-notice">
-          ✅ {demoMessage}
-        </div>
+        <div className="demo-notice">✅ {demoMessage}</div>
       )}
 
-      {/* ── Metric Cards ── */}
+      {/* Metric Cards */}
       <section aria-label="Risk Summary Metrics">
         <RiskSummaryCards risk={risk} status={status} loading={loading} />
       </section>
 
-      {/* ── Charts ── */}
+      {/* Charts */}
       <section aria-label="Revenue Risk Charts">
         <RevenueRiskChart risk={risk} />
       </section>
 
-      {/* ── Change Feed ── */}
+      {/* Change Feed */}
       <section className="feed-section">
         <div className="feed-header">
           <h2 className="section-title">Live Change Feed</h2>
 
-          {/* Filters */}
           <div className="filter-bar">
+            {/* Change type */}
             <select
               className="filter-select"
               value={filterChangeType}
-              onChange={(e) => setFilterChangeType(e.target.value)}
+              onChange={(e) => handleChangeType(e.target.value)}
               id="filter-change-type"
             >
               <option value="">All Types</option>
@@ -140,10 +201,11 @@ export default function HomePage() {
               <option value="STYLISTIC">Stylistic</option>
             </select>
 
+            {/* Payer */}
             <select
               className="filter-select"
               value={filterPayer}
-              onChange={(e) => setFilterPayer(e.target.value)}
+              onChange={(e) => handlePayer(e.target.value)}
               id="filter-payer"
             >
               <option value="">All Payers</option>
@@ -153,19 +215,51 @@ export default function HomePage() {
               <option value="Humana">Humana</option>
             </select>
 
+            {/* Date from */}
+            <input
+              type="date"
+              className="filter-select filter-date"
+              value={filterDateFrom}
+              onChange={(e) => handleDateFrom(e.target.value)}
+              id="filter-date-from"
+              title="From date"
+            />
+
+            {/* Date to */}
+            <input
+              type="date"
+              className="filter-select filter-date"
+              value={filterDateTo}
+              onChange={(e) => handleDateTo(e.target.value)}
+              id="filter-date-to"
+              title="To date"
+            />
+
             <button
               className="btn btn-outline btn-sm"
-              onClick={() => { setFilterChangeType(""); setFilterPayer(""); }}
+              id="filter-clear-btn"
+              onClick={handleClear}
             >
               Clear
             </button>
           </div>
         </div>
 
-        <ChangeFeed events={changes} loading={loading} />
+        {/* Cleared state: prompt user to pick a filter */}
+        {isCleared ? (
+          <div className="cleared-state">
+            <span className="cleared-icon">🔍</span>
+            <p className="cleared-title">Feed cleared</p>
+            <p className="cleared-hint">
+              Select a payer, change type, or date range above to explore past changes.
+            </p>
+          </div>
+        ) : (
+          <ChangeFeed events={filteredChanges} loading={loading} />
+        )}
       </section>
 
-      {/* ── System Status Panel ── */}
+      {/* System Status */}
       {status && (
         <section className="status-panel">
           <h2 className="section-title">System Status</h2>
