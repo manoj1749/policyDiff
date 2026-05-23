@@ -159,8 +159,12 @@ export default function HomePage() {
     try {
       const res = await triggerDemo();
       setDemoMessage(res.message);
-      // Restore feed (clear the cleared state) so new event is visible
+      // If the feed was cleared, only show today's events (just the new demo event)
+      // rather than un-clearing everything
+      const today = new Date().toISOString().split("T")[0];
+      setFilterDateFrom(today);
       setIsCleared(false);
+      setClearKey((k) => k + 1); // force date inputs to reflect new value
       setTimeout(refresh, 3000);
     } catch {
       setDemoMessage("Demo trigger failed — check that the backend is running.");

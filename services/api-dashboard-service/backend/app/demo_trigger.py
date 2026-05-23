@@ -34,6 +34,7 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 # Filled dynamically with real payer / CPT / revenue data from ClickHouse.
 
 SCENARIO_TEMPLATES = [
+    # ── TIGHTENING ──────────────────────────────────────────────
     {
         "service_line": "Cardiology",
         "change_type": "TIGHTENING",
@@ -56,6 +57,7 @@ SCENARIO_TEMPLATES = [
             "within 60 days. Audit pending cardiac imaging orders immediately."
         ),
         "cpt_hints": ["75561", "75563", "75565", "93306"],
+        "revenue_is_risk": True,
     },
     {
         "service_line": "Radiology",
@@ -64,8 +66,7 @@ SCENARIO_TEMPLATES = [
         "policy_title_tpl": "{payer} MRI Coverage — Conservative Therapy Prerequisite",
         "changed_clause_tpl": (
             "{payer} requires documented evidence of at least 6 weeks of conservative "
-            "therapy (PT notes, chiropractic records, or pain management) "
-            "prior to approving MRI of the spine or extremities."
+            "therapy before approving MRI of the spine or extremities."
         ),
         "change_summary_tpl": (
             "{payer} added a 6-week conservative therapy prerequisite for MRI "
@@ -80,54 +81,7 @@ SCENARIO_TEMPLATES = [
             "for all spine and extremity MRI orders."
         ),
         "cpt_hints": ["72141", "72148", "73221", "73721"],
-    },
-    {
-        "service_line": "Orthopedics",
-        "change_type": "TIGHTENING",
-        "policy_id_tpl": "{payer_slug}-joint-replacement-criteria-{year}",
-        "policy_title_tpl": "{payer} Joint Replacement Medical Necessity Criteria Update",
-        "changed_clause_tpl": (
-            "{payer} updated joint replacement criteria to require BMI < 40 "
-            "and documented 3-month supervised weight management program "
-            "for members with BMI ≥ 35."
-        ),
-        "change_summary_tpl": (
-            "{payer} added BMI and weight management prerequisites for joint "
-            "replacement — affecting CPT {cpts}."
-        ),
-        "clinical_impact_tpl": (
-            "Surgical schedulers must collect BMI documentation and, where applicable, "
-            "a 3-month weight management program completion letter."
-        ),
-        "recommended_action_tpl": (
-            "Flag all pending joint replacement PA requests with BMI ≥ 35 "
-            "for additional documentation review before submission."
-        ),
-        "cpt_hints": ["27447", "27130", "27487", "27486"],
-    },
-    {
-        "service_line": "Radiology",
-        "change_type": "LOOSENING",
-        "policy_id_tpl": "{payer_slug}-ct-colonoscopy-expansion-{year}",
-        "policy_title_tpl": "{payer} CT Colonoscopy Coverage Expansion",
-        "changed_clause_tpl": (
-            "{payer} expanded CT colonoscopy coverage to include members aged 45+ "
-            "as a first-line colorectal cancer screening option, "
-            "removing the prior optical colonoscopy requirement."
-        ),
-        "change_summary_tpl": (
-            "{payer} loosened CT colonoscopy criteria — now covers age 45+ "
-            "without requiring a prior failed optical colonoscopy (CPT {cpts})."
-        ),
-        "clinical_impact_tpl": (
-            "Radiology teams can now schedule CT colonoscopy for eligible patients "
-            "aged 45+ without a prior authorization denial history."
-        ),
-        "recommended_action_tpl": (
-            "Update screening order pathways to offer CT colonoscopy as a "
-            "first-line option for appropriate patients aged 45+."
-        ),
-        "cpt_hints": ["74263", "74261", "74262"],
+        "revenue_is_risk": True,
     },
     {
         "service_line": "Neurology",
@@ -151,6 +105,158 @@ SCENARIO_TEMPLATES = [
             "and collect neurologist evaluation notes before submission."
         ),
         "cpt_hints": ["70553", "70552", "70551"],
+        "revenue_is_risk": True,
+    },
+
+    # ── LOOSENING ────────────────────────────────────────────────
+    {
+        "service_line": "Radiology",
+        "change_type": "LOOSENING",
+        "policy_id_tpl": "{payer_slug}-ct-colonoscopy-expansion-{year}",
+        "policy_title_tpl": "{payer} CT Colonoscopy Coverage Expansion",
+        "changed_clause_tpl": (
+            "{payer} expanded CT colonoscopy coverage to include members aged 45+ "
+            "as a first-line screening option, removing the prior optical colonoscopy requirement."
+        ),
+        "change_summary_tpl": (
+            "{payer} loosened CT colonoscopy criteria — now covers age 45+ "
+            "without requiring a prior failed optical colonoscopy (CPT {cpts})."
+        ),
+        "clinical_impact_tpl": (
+            "Radiology teams can now schedule CT colonoscopy for eligible patients "
+            "aged 45+ without a prior authorization denial history."
+        ),
+        "recommended_action_tpl": (
+            "Update screening order pathways to offer CT colonoscopy as a "
+            "first-line option for appropriate patients aged 45+."
+        ),
+        "cpt_hints": ["74263", "74261", "74262"],
+        "revenue_is_risk": False,  # Loosening = opportunity, not risk
+    },
+    {
+        "service_line": "Mental Health",
+        "change_type": "LOOSENING",
+        "policy_id_tpl": "{payer_slug}-telehealth-mental-health-expansion-{year}",
+        "policy_title_tpl": "{payer} Telehealth Mental Health Coverage Expansion",
+        "changed_clause_tpl": (
+            "{payer} removed the in-person visit requirement for initial mental health "
+            "evaluations, now allowing telehealth as the primary modality."
+        ),
+        "change_summary_tpl": (
+            "{payer} expanded telehealth mental health coverage — initial evaluations "
+            "no longer require in-person visits (CPT {cpts})."
+        ),
+        "clinical_impact_tpl": (
+            "Behavioral health schedulers can now offer telehealth as the first "
+            "appointment option for new mental health patients."
+        ),
+        "recommended_action_tpl": (
+            "Update intake workflows to offer telehealth first for new behavioral "
+            "health referrals under this payer."
+        ),
+        "cpt_hints": ["90837", "90834", "90832"],
+        "revenue_is_risk": False,
+    },
+    {
+        "service_line": "Orthopedics",
+        "change_type": "LOOSENING",
+        "policy_id_tpl": "{payer_slug}-pt-visit-limit-increase-{year}",
+        "policy_title_tpl": "{payer} Physical Therapy Annual Visit Limit Increase",
+        "changed_clause_tpl": (
+            "{payer} increased the annual physical therapy visit limit from 20 to 40 "
+            "visits per member, effective immediately."
+        ),
+        "change_summary_tpl": (
+            "{payer} doubled annual PT visit limits from 20 to 40 — "
+            "significant volume opportunity for CPT {cpts}."
+        ),
+        "clinical_impact_tpl": (
+            "PT schedulers can now book members past the prior 20-visit threshold "
+            "without additional medical necessity review."
+        ),
+        "recommended_action_tpl": (
+            "Contact patients who hit the 20-visit limit this year — "
+            "they may now be eligible for additional sessions."
+        ),
+        "cpt_hints": ["97110", "97530", "97140"],
+        "revenue_is_risk": False,
+    },
+
+    # ── SCOPE_CHANGE ─────────────────────────────────────────────
+    {
+        "service_line": "Oncology",
+        "change_type": "SCOPE_CHANGE",
+        "policy_id_tpl": "{payer_slug}-oncology-imaging-scope-{year}",
+        "policy_title_tpl": "{payer} Oncology Imaging Policy Scope Update",
+        "changed_clause_tpl": (
+            "{payer} updated oncology imaging policy to require ordering physician "
+            "to be a board-certified oncologist rather than a referring PCP."
+        ),
+        "change_summary_tpl": (
+            "{payer} narrowed the eligible ordering providers for oncology imaging "
+            "to board-certified oncologists only — affecting CPT {cpts}."
+        ),
+        "clinical_impact_tpl": (
+            "Oncology imaging orders initiated by PCPs will require co-signature "
+            "from a board-certified oncologist before PA submission."
+        ),
+        "recommended_action_tpl": (
+            "Review open oncology imaging orders for PCP-initiated requests "
+            "and coordinate oncologist co-signatures before PA submission."
+        ),
+        "cpt_hints": ["78816", "78814", "71250"],
+        "revenue_is_risk": False,
+    },
+    {
+        "service_line": "Cardiology",
+        "change_type": "SCOPE_CHANGE",
+        "policy_id_tpl": "{payer_slug}-cardiac-monitoring-scope-{year}",
+        "policy_title_tpl": "{payer} Cardiac Monitoring Covered Setting Update",
+        "changed_clause_tpl": (
+            "{payer} updated cardiac monitoring policy to cover outpatient-initiated "
+            "monitoring only when ordered by a cardiologist, not a hospitalist."
+        ),
+        "change_summary_tpl": (
+            "{payer} restricted outpatient cardiac monitoring ordering to cardiologists — "
+            "hospitalist-ordered studies now require prior auth (CPT {cpts})."
+        ),
+        "clinical_impact_tpl": (
+            "Hospitalist-ordered outpatient cardiac monitoring now requires additional "
+            "PA steps — cardiology co-signature or referral required."
+        ),
+        "recommended_action_tpl": (
+            "Flag all pending hospitalist-ordered outpatient cardiac monitoring "
+            "orders and route for cardiologist review before PA submission."
+        ),
+        "cpt_hints": ["93241", "93243", "93245"],
+        "revenue_is_risk": False,
+    },
+
+    # ── STYLISTIC ────────────────────────────────────────────────
+    {
+        "service_line": "Radiology",
+        "change_type": "STYLISTIC",
+        "policy_id_tpl": "{payer_slug}-radiology-policy-language-update-{year}",
+        "policy_title_tpl": "{payer} Radiology Policy Language Clarification",
+        "changed_clause_tpl": (
+            "{payer} updated the radiology prior auth policy to clarify that "
+            "'medical necessity documentation' must include ordering provider "
+            "attestation — no change to clinical criteria."
+        ),
+        "change_summary_tpl": (
+            "{payer} issued a language clarification to its radiology PA policy — "
+            "documentation format updated, no clinical criteria change (CPT {cpts})."
+        ),
+        "clinical_impact_tpl": (
+            "No clinical change. Ordering providers must now explicitly attest "
+            "medical necessity on the PA form — previously implied."
+        ),
+        "recommended_action_tpl": (
+            "Update PA submission templates to include explicit ordering provider "
+            "attestation field. No clinical workflow changes needed."
+        ),
+        "cpt_hints": ["72141", "70553", "74263"],
+        "revenue_is_risk": False,  # Stylistic = no revenue impact
     },
 ]
 
@@ -231,6 +337,11 @@ async def _data_driven_demo() -> Dict[str, Any]:
         revenue = random.uniform(500_000, 2_500_000)
 
     revenue = round(revenue, -3)  # round to nearest $1000
+
+    # LOOSENING, SCOPE_CHANGE, STYLISTIC = no revenue at risk (they're opportunities/neutral)
+    if not scenario.get("revenue_is_risk", True):
+        revenue = 0.0
+
     cpts_str = ", ".join(cpts)
 
     # ── Step 4: render narrative from templates ────────────────────
