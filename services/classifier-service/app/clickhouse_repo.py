@@ -22,6 +22,8 @@ def _client():
         username=settings.clickhouse_user,
         password=settings.clickhouse_password,
         database=settings.clickhouse_db,
+        secure=settings.clickhouse_secure,
+        verify=settings.clickhouse_verify,
     )
 
 
@@ -168,29 +170,98 @@ def insert_change_event(event: dict[str, Any]) -> str:
 
 
 def mark_processed(diff_id: str) -> None:
-    """Update diff_candidates status to PROCESSED."""
+    """Mark diff_candidates row as PROCESSED.
+
+    Cloud ClickHouse blocks ALTER TABLE UPDATE on ORDER BY key columns.
+    We use DELETE + INSERT to simulate an update — safe for MergeTree.
+    """
     client = _client()
-    client.command(
+    # Fetch the original row first
+    result = client.query(
         """
-        ALTER TABLE policydiff.diff_candidates
-        UPDATE status = 'PROCESSED', processed_at = now(), error_message = ''
+        SELECT diff_id, created_at, payer, policy_id, policy_title, url,
+               source_type, service_line, old_hash, new_hash, old_text, new_text,
+               default_cpt_codes, error_message
+        FROM policydiff.diff_candidates
         WHERE diff_id = {diff_id:String}
+        LIMIT 1
         """,
         parameters={"diff_id": diff_id},
+    )
+    if not result.result_rows:
+        logger.warning("mark_processed: diff %s not found.", diff_id)
+        return
+
+    row = dict(zip(result.column_names, result.result_rows[0]))
+    # Delete the old row
+    client.command(
+        "DELETE FROM policydiff.diff_candidates WHERE diff_id = {diff_id:String}",
+        parameters={"diff_id": diff_id},
+    )
+    # Reinsert with updated status
+    import datetime
+    client.insert(
+        "policydiff.diff_candidates",
+        [[
+            row["diff_id"], row["created_at"], row["payer"], row["policy_id"],
+            row["policy_title"], row["url"], row["source_type"], row["service_line"],
+            int(row["old_hash"]) if row.get("old_hash") else 0,
+            int(row["new_hash"]) if row.get("new_hash") else 0,
+            row["old_text"], row["new_text"],
+            list(row["default_cpt_codes"]) if row.get("default_cpt_codes") else [],
+            "PROCESSED",
+            datetime.datetime.utcnow(),
+            "",
+        ]],
+        column_names=[
+            "diff_id", "created_at", "payer", "policy_id", "policy_title", "url",
+            "source_type", "service_line", "old_hash", "new_hash", "old_text", "new_text",
+            "default_cpt_codes", "status", "processed_at", "error_message",
+        ],
     )
     logger.info("Marked diff %s as PROCESSED.", diff_id)
 
 
 def mark_error(diff_id: str, error_message: str) -> None:
-    """Update diff_candidates status to ERROR."""
+    """Mark diff_candidates row as ERROR (delete + reinsert for cloud ClickHouse)."""
     client = _client()
-    client.command(
+    result = client.query(
         """
-        ALTER TABLE policydiff.diff_candidates
-        UPDATE status = 'ERROR', error_message = {error_message:String}
+        SELECT diff_id, created_at, payer, policy_id, policy_title, url,
+               source_type, service_line, old_hash, new_hash, old_text, new_text,
+               default_cpt_codes, processed_at
+        FROM policydiff.diff_candidates
         WHERE diff_id = {diff_id:String}
+        LIMIT 1
         """,
-        parameters={"diff_id": diff_id, "error_message": error_message[:2000]},
+        parameters={"diff_id": diff_id},
+    )
+    if not result.result_rows:
+        logger.warning("mark_error: diff %s not found.", diff_id)
+        return
+    row = dict(zip(result.column_names, result.result_rows[0]))
+    client.command(
+        "DELETE FROM policydiff.diff_candidates WHERE diff_id = {diff_id:String}",
+        parameters={"diff_id": diff_id},
+    )
+    client.insert(
+        "policydiff.diff_candidates",
+        [[
+            row["diff_id"], row["created_at"], row["payer"], row["policy_id"],
+            row["policy_title"], row["url"], row["source_type"], row["service_line"],
+            int(row["old_hash"]) if row.get("old_hash") else 0,
+            int(row["new_hash"]) if row.get("new_hash") else 0,
+            row["old_text"], row["new_text"],
+            list(row["default_cpt_codes"]) if row.get("default_cpt_codes") else [],
+            "ERROR",
+            row.get("processed_at"),
+            error_message[:2000],
+        ]],
+        column_names=[
+            "diff_id", "created_at", "payer", "policy_id", "policy_title", "url",
+            "source_type", "service_line", "old_hash", "new_hash", "old_text", "new_text",
+            "default_cpt_codes", "status", "processed_at", "error_message",
+        ],
     )
     logger.warning("Marked diff %s as ERROR: %s", diff_id, error_message)
 

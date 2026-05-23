@@ -21,6 +21,8 @@ class Settings:
     clickhouse_user: str = field(default_factory=lambda: os.getenv("CLICKHOUSE_USER", "default"))
     clickhouse_password: str = field(default_factory=lambda: os.getenv("CLICKHOUSE_PASSWORD", ""))
     clickhouse_db: str = field(default_factory=lambda: os.getenv("CLICKHOUSE_DB", "policydiff"))
+    clickhouse_secure: bool = field(default_factory=lambda: os.getenv("CLICKHOUSE_SECURE", "false").lower() == "true")
+    clickhouse_verify: bool = field(default_factory=lambda: os.getenv("CLICKHOUSE_VERIFY", "true").lower() == "true")
 
     # Gemini
     gemini_api_key: str = field(default_factory=lambda: os.getenv("GEMINI_API_KEY", ""))
