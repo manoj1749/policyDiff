@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS policydiff.change_events
     revenue_at_risk_usd Float64,
     cited_md_url        String,
     cited_markdown      String,
+    recommended_action  String DEFAULT '',
     datadog_trace_id    String DEFAULT '',
     status              String DEFAULT 'PUBLISHED'
 )

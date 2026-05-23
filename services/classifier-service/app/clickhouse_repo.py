@@ -140,6 +140,7 @@ def insert_change_event(event: dict[str, Any]) -> str:
                 float(event.get("revenue_at_risk_usd", 0.0)),
                 event.get("cited_md_url", ""),
                 event.get("cited_markdown", ""),
+                event.get("recommended_action", ""),
                 event.get("datadog_trace_id", ""),
                 event.get("status", "PUBLISHED"),
             ]
@@ -161,6 +162,7 @@ def insert_change_event(event: dict[str, Any]) -> str:
             "revenue_at_risk_usd",
             "cited_md_url",
             "cited_markdown",
+            "recommended_action",
             "datadog_trace_id",
             "status",
         ],
