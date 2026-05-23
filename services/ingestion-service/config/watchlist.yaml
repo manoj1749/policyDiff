@@ -1,0 +1,55 @@
+policies:
+  - payer: UHC
+    policy_id: cardiac-mri
+    policy_title: Cardiac MRI Coverage Policy
+    url: https://www.uhcprovider.com/en/policies-protocols/b-d/cardiac-mri.html
+    source_type: html
+    service_line: Cardiology
+    default_cpt_codes: ["75557", "75559", "75561"]
+    active: true
+
+  - payer: UHC
+    policy_id: vagus-nerve-stim
+    policy_title: Vagus Nerve Stimulation Coverage Policy
+    url: https://www.uhcprovider.com/en/policies-protocols/t-z/vagus-nerve-stimulation.html
+    source_type: html
+    service_line: Neurology
+    default_cpt_codes: ["64568", "64569", "64570"]
+    active: true
+
+  - payer: Aetna
+    policy_id: cpb-0761
+    policy_title: Magnetic Resonance Imaging of the Extremities
+    url: https://www.aetna.com/cpb/medical/data/700_799/0761.html
+    source_type: html
+    service_line: Radiology
+    default_cpt_codes: ["73221", "73721"]
+    active: true
+
+  - payer: Aetna
+    policy_id: cpb-0352
+    policy_title: Diagnostic Imaging Policy
+    url: https://www.aetna.com/cpb/medical/data/300_399/0352.html
+    source_type: html
+    service_line: Radiology
+    default_cpt_codes: ["71046", "71250"]
+    active: true
+
+  - payer: Cigna
+    policy_id: cardiac-imaging
+    policy_title: Cardiac Imaging Guidelines
+    url: https://www.cigna.com/static/www-cigna-com/docs/health-care-providers/resources/cardiac-imaging-criteria.pdf
+    source_type: pdf
+    service_line: Cardiology
+    default_cpt_codes: ["93306", "93454", "75561"]
+    active: true
+
+  - payer: Humana
+    policy_id: mri-spine
+    policy_title: MRI Spine Clinical Criteria
+    url: https://apps.availity.com/public-resources/assets/humana/clinical-criteria/HUM-MRI-SPINE.pdf
+    source_type: pdf
+    service_line: Orthopedics
+    default_cpt_codes: ["72141", "72148", "72156", "72158"]
+    active: true
+
