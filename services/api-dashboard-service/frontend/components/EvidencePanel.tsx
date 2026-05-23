@@ -2,7 +2,7 @@
 
 import React from "react";
 import type { ChangeEventDetail } from "@/lib/api";
-import { formatCurrency, CHANGE_TYPE_META } from "@/lib/api";
+import { CHANGE_TYPE_META, formatCurrency } from "@/lib/api";
 
 interface EvidencePanelProps {
   event: ChangeEventDetail;
@@ -13,7 +13,6 @@ export default function EvidencePanel({ event }: EvidencePanelProps) {
 
   return (
     <div className="evidence-panel">
-      {/* Header */}
       <div className="evidence-header">
         <div className="evidence-header-left">
           <span
@@ -29,36 +28,36 @@ export default function EvidencePanel({ event }: EvidencePanelProps) {
           <span className="payer-chip payer-chip-lg">{event.payer}</span>
           <span className="service-line-chip">{event.service_line}</span>
         </div>
-        <span className="confidence-badge">
-          {(event.confidence * 100).toFixed(0)}% confidence
-        </span>
+        <span className="confidence-badge">{(event.confidence * 100).toFixed(0)}% confidence</span>
       </div>
 
-      {/* Policy info */}
+      <p className="section-kicker">Evidence Review</p>
       <h1 className="evidence-title">{event.policy_title}</h1>
-      {event.url && (
+      {event.url ? (
         <a href={event.url} target="_blank" rel="noopener noreferrer" className="policy-url">
-          ↗ View Original Policy
+          Open original payer policy
         </a>
-      )}
+      ) : null}
 
-      {/* Key metrics */}
       <div className="evidence-metrics">
         <div className="ev-metric">
-          <span className="ev-metric-label">Revenue at Risk</span>
-          <span className="ev-metric-value" style={{ color: "#ef4444" }}>
+          <span className="ev-metric-label">Revenue at risk</span>
+          <span className="ev-metric-value ev-metric-risk">
             {formatCurrency(event.revenue_at_risk_usd)}
           </span>
         </div>
         <div className="ev-metric">
-          <span className="ev-metric-label">Affected CPT Codes</span>
-          <span className="ev-metric-value cpt-codes">
+          <span className="ev-metric-label">Affected CPT codes</span>
+          <span className="ev-metric-value ev-metric-compact">
             {event.cpt_codes_affected.join(", ") || "None"}
           </span>
         </div>
+        <div className="ev-metric">
+          <span className="ev-metric-label">Current status</span>
+          <span className="ev-metric-value ev-metric-compact">{event.status}</span>
+        </div>
       </div>
 
-      {/* Changed clause */}
       <section className="evidence-section">
         <h2 className="section-heading">Changed Clause</h2>
         <blockquote className="changed-clause">
@@ -66,21 +65,18 @@ export default function EvidencePanel({ event }: EvidencePanelProps) {
         </blockquote>
       </section>
 
-      {/* Change summary */}
       <section className="evidence-section">
         <h2 className="section-heading">Change Summary</h2>
         <p className="section-body">{event.change_summary}</p>
       </section>
 
-      {/* Clinical impact */}
       <section className="evidence-section">
         <h2 className="section-heading">Clinical Impact</h2>
         <p className="section-body">{event.clinical_impact}</p>
       </section>
 
-      {/* Recommended action */}
       <section className="evidence-section action-section">
-        <h2 className="section-heading">⚡ Recommended Action</h2>
+        <h2 className="section-heading">Recommended Action</h2>
         <p className="section-body action-body">{event.recommended_action}</p>
       </section>
     </div>
