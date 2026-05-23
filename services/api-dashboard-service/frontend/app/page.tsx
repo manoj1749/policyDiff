@@ -184,14 +184,10 @@ export default function HomePage() {
   async function handleTriggerDemo() {
     setDemoLoading(true);
     setDemoMessage("");
-    // Snapshot the IDs of all events currently in the feed before the demo fires.
-    // After the demo we exclude these — only the brand-new event shows.
-    const snapshot = new Set(allChanges.map((e) => e.event_id));
     try {
       const response = await triggerDemo();
       setDemoMessage(response.message);
       setIsCleared(false);
-      setKnownEventIds(snapshot);
       setTimeout(refresh, 3000);
     } catch {
       setDemoMessage("Demo trigger failed. Check that the backend is running.");

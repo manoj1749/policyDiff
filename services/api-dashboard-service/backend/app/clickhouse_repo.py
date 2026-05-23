@@ -274,17 +274,27 @@ def fetch_system_status() -> Dict[str, Any]:
     )
     processed_today = int(processed_result.result_rows[0][0] or 0) if processed_result.result_rows else 0
 
-    # Latest ingestion run
+    # Latest ingestion run — ClickHouse returns 1970-01-01 epoch on empty aggregate
     ingest_result = client.query(
         "SELECT max(started_at) FROM policydiff.ingestion_runs"
     )
-    latest_ingestion = _fmt_dt(ingest_result.result_rows[0][0] if ingest_result.result_rows else None)
+    _ingest_raw = ingest_result.result_rows[0][0] if ingest_result.result_rows else None
+    latest_ingestion = (
+        _fmt_dt(_ingest_raw)
+        if _ingest_raw and getattr(_ingest_raw, "year", 0) > 1970
+        else None
+    )
 
     # Latest change event
     event_result = client.query(
         "SELECT max(created_at) FROM policydiff.change_events"
     )
-    latest_event = _fmt_dt(event_result.result_rows[0][0] if event_result.result_rows else None)
+    _event_raw = event_result.result_rows[0][0] if event_result.result_rows else None
+    latest_event = (
+        _fmt_dt(_event_raw)
+        if _event_raw and getattr(_event_raw, "year", 0) > 1970
+        else None
+    )
 
     # Senso published count
     senso_result = client.query(
