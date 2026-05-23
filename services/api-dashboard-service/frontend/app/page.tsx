@@ -1,22 +1,20 @@
-/**
- * app/page.tsx — PolicyDiff Home Dashboard
- *
- * Filter behaviours:
- *  - Default: show all events
- *  - After Clear: show nothing (isCleared=true) until a filter is explicitly set
- *  - Any filter selection restores the feed for that subset
- *  - Date range filter works alongside payer/type filters
- */
-
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, {
+  startTransition,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useState,
+} from "react";
 import {
+  CHANGE_TYPE_META,
   fetchChanges,
   fetchRiskSummary,
   fetchSystemStatus,
-  triggerDemo,
+  formatCurrency,
   REFRESH_INTERVAL_MS,
+  triggerDemo,
   type ChangeEventSummary,
   type RiskSummary,
   type SystemStatus,
@@ -24,6 +22,14 @@ import {
 import RiskSummaryCards from "@/components/RiskSummaryCards";
 import RevenueRiskChart from "@/components/RevenueRiskChart";
 import ChangeFeed from "@/components/ChangeFeed";
+
+function toTitleCase(value: string) {
+  return value
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
 
 export default function HomePage() {
   const [allChanges, setAllChanges] = useState<ChangeEventSummary[]>([]);
@@ -34,52 +40,27 @@ export default function HomePage() {
   const [demoMessage, setDemoMessage] = useState("");
   const [demoLoading, setDemoLoading] = useState(false);
 
-  // Filters
   const [filterChangeType, setFilterChangeType] = useState("");
   const [filterPayer, setFilterPayer] = useState("");
+  const [filterServiceLine, setFilterServiceLine] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
-
-  /**
-   * isCleared: when true, the feed is intentionally blank.
-   * Cleared by clicking "Clear". Reset back to false when any filter is explicitly set.
-   */
   const [isCleared, setIsCleared] = useState(false);
-
-  const hasAnyFilter =
-    !!filterChangeType || !!filterPayer || !!filterDateFrom || !!filterDateTo;
-
-  // Derived: apply all active filters synchronously
-  const filteredChanges: ChangeEventSummary[] = isCleared
-    ? []
-    : allChanges.filter((e) => {
-        if (filterChangeType && e.change_type !== filterChangeType) return false;
-        if (filterPayer && e.payer !== filterPayer) return false;
-        if (filterDateFrom) {
-          const from = new Date(filterDateFrom).getTime();
-          const ts = new Date(e.created_at).getTime();
-          if (ts < from) return false;
-        }
-        if (filterDateTo) {
-          // include the full "to" day by going to end of day
-          const to = new Date(filterDateTo + "T23:59:59").getTime();
-          const ts = new Date(e.created_at).getTime();
-          if (ts > to) return false;
-        }
-        return true;
-      });
 
   const refresh = useCallback(async () => {
     try {
-      const [c, r, s] = await Promise.all([
+      const [changes, nextRisk, nextStatus] = await Promise.all([
         fetchChanges({ limit: 50 }),
         fetchRiskSummary(),
         fetchSystemStatus(),
       ]);
-      setAllChanges(c);
-      setRisk(r);
-      setStatus(s);
-      setLastRefresh(new Date());
+
+      startTransition(() => {
+        setAllChanges(changes);
+        setRisk(nextRisk);
+        setStatus(nextStatus);
+        setLastRefresh(new Date());
+      });
     } catch (err) {
       console.error("Refresh failed:", err);
     } finally {
@@ -93,201 +74,342 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [refresh]);
 
-  // Clear: hide everything. User must explicitly pick a filter to see events.
-  const handleClear = () => {
+  const payerOptions = Array.from(new Set(allChanges.map((event) => event.payer))).sort();
+  const serviceLineOptions = Array.from(
+    new Set(allChanges.map((event) => event.service_line)),
+  ).sort();
+
+  const hasAnyFilter =
+    !!filterChangeType ||
+    !!filterPayer ||
+    !!filterServiceLine ||
+    !!filterDateFrom ||
+    !!filterDateTo;
+
+  const filteredChanges = isCleared
+    ? []
+    : allChanges.filter((event) => {
+        if (filterChangeType && event.change_type !== filterChangeType) return false;
+        if (filterPayer && event.payer !== filterPayer) return false;
+        if (filterServiceLine && event.service_line !== filterServiceLine) return false;
+        if (filterDateFrom) {
+          const from = new Date(filterDateFrom).getTime();
+          const ts = new Date(event.created_at).getTime();
+          if (ts < from) return false;
+        }
+        if (filterDateTo) {
+          const to = new Date(`${filterDateTo}T23:59:59`).getTime();
+          const ts = new Date(event.created_at).getTime();
+          if (ts > to) return false;
+        }
+        return true;
+      });
+
+  const deferredChanges = useDeferredValue(filteredChanges);
+  const topPayer = risk?.by_payer?.[0] ?? null;
+  const topServiceLine = risk?.by_service_line?.[0] ?? null;
+  const topChangeType = risk?.by_change_type?.[0] ?? null;
+
+  function handleClear() {
     setFilterChangeType("");
     setFilterPayer("");
+    setFilterServiceLine("");
     setFilterDateFrom("");
     setFilterDateTo("");
     setIsCleared(true);
-  };
+  }
 
-  // Any filter change un-clears the feed
-  const handleChangeType = (v: string) => {
-    setFilterChangeType(v);
+  function restoreFeed() {
     setIsCleared(false);
-  };
-  const handlePayer = (v: string) => {
-    setFilterPayer(v);
-    setIsCleared(false);
-  };
-  const handleDateFrom = (v: string) => {
-    setFilterDateFrom(v);
-    setIsCleared(false);
-  };
-  const handleDateTo = (v: string) => {
-    setFilterDateTo(v);
-    setIsCleared(false);
-  };
+  }
 
-  const handleTriggerDemo = async () => {
+  async function handleTriggerDemo() {
     setDemoLoading(true);
     setDemoMessage("");
     try {
-      const res = await triggerDemo();
-      setDemoMessage(res.message);
-      // Restore feed and refresh after a moment
+      const response = await triggerDemo();
+      setDemoMessage(response.message);
       setIsCleared(false);
       setTimeout(refresh, 3000);
     } catch {
-      setDemoMessage("Demo trigger failed — check that the backend is running.");
+      setDemoMessage("Demo trigger failed. Check that the backend is running.");
     } finally {
       setDemoLoading(false);
     }
-  };
+  }
 
   return (
     <div className="page-root">
-      {/* Header */}
-      <header className="dashboard-header">
-        <div className="header-left">
-          <div className="logo-mark">PD</div>
-          <div>
-            <h1 className="dashboard-title">PolicyDiff</h1>
-            <p className="dashboard-subtitle">Payer Policy Change Monitor</p>
+      <header className="dashboard-shell">
+        <section className="hero-panel">
+          <div className="hero-topline">PolicyDiff</div>
+          <div className="hero-main">
+            <div className="hero-copy">
+              <div className="hero-brand-row">
+                <div className="logo-mark">PD</div>
+                <div>
+                  <h1 className="dashboard-title">Payer Policy Change Monitor</h1>
+                  <p className="dashboard-subtitle">
+                    Detect tightening, quantify revenue risk, and route evidence before denials
+                    hit operations.
+                  </p>
+                </div>
+              </div>
+
+              <div className="hero-status-row">
+                <span className="hero-pill hero-pill-live">Live refresh every 10 seconds</span>
+                {status?.datadog_enabled ? (
+                  <span className="hero-pill">Datadog tracing enabled</span>
+                ) : null}
+                {lastRefresh ? (
+                  <span className="hero-pill hero-pill-muted">
+                    Last updated {lastRefresh.toLocaleTimeString()}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="hero-actions">
+              <button
+                className="btn btn-demo btn-hero"
+                onClick={handleTriggerDemo}
+                disabled={demoLoading}
+                id="trigger-demo-btn"
+              >
+                {demoLoading ? "Simulating..." : "Trigger Demo Change"}
+              </button>
+              <p className="hero-helper">
+                Use the demo path when live payer content is delayed or blocked upstream.
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="header-right">
-          {lastRefresh && (
-            <span className="refresh-ts">
-              Last updated: {lastRefresh.toLocaleTimeString()}
-            </span>
-          )}
-          {status?.datadog_enabled && (
-            <span className="datadog-badge">🐶 Datadog</span>
-          )}
-          <button
-            className="btn btn-demo"
-            onClick={handleTriggerDemo}
-            disabled={demoLoading}
-            id="trigger-demo-btn"
-          >
-            {demoLoading ? "⏳ Simulating…" : "⚡ Trigger Demo"}
-          </button>
-        </div>
+
+          <div className="hero-insight-grid">
+            <article className="insight-card">
+              <span className="insight-label">Top payer exposure</span>
+              <strong className="insight-value">{topPayer?.payer ?? "Waiting for data"}</strong>
+              <span className="insight-sub">
+                {topPayer ? formatCurrency(topPayer.revenue_at_risk_usd) : "No risk summary yet"}
+              </span>
+            </article>
+            <article className="insight-card">
+              <span className="insight-label">Most exposed service line</span>
+              <strong className="insight-value">
+                {topServiceLine?.service_line ?? "Waiting for data"}
+              </strong>
+              <span className="insight-sub">
+                {topServiceLine
+                  ? `${topServiceLine.count} flagged changes`
+                  : "No risk summary yet"}
+              </span>
+            </article>
+            <article className="insight-card">
+              <span className="insight-label">Dominant change type</span>
+              <strong className="insight-value">
+                {topChangeType ? toTitleCase(topChangeType.change_type) : "Waiting for data"}
+              </strong>
+              <span className="insight-sub">
+                {topChangeType
+                  ? formatCurrency(topChangeType.revenue_at_risk_usd)
+                  : "No risk summary yet"}
+              </span>
+            </article>
+          </div>
+        </section>
       </header>
 
-      {demoMessage && (
-        <div className="demo-notice">✅ {demoMessage}</div>
-      )}
+      {demoMessage ? <div className="demo-notice">{demoMessage}</div> : null}
 
-      {/* Metric Cards */}
       <section aria-label="Risk Summary Metrics">
         <RiskSummaryCards risk={risk} status={status} loading={loading} />
       </section>
 
-      {/* Charts */}
+      <section className="control-deck">
+        <div className="control-deck-header">
+          <div>
+            <p className="section-kicker">Ops Workbench</p>
+            <h2 className="section-title">Filter the live decision queue</h2>
+          </div>
+          <div className="control-summary">
+            <span className="control-count">{isCleared ? 0 : deferredChanges.length} visible</span>
+            <span className="control-divider" />
+            <span className="control-count">{allChanges.length} tracked</span>
+          </div>
+        </div>
+
+        <div className="filter-bar filter-grid">
+          <select
+            className="filter-select"
+            value={filterChangeType}
+            onChange={(event) => {
+              setFilterChangeType(event.target.value);
+              restoreFeed();
+            }}
+            id="filter-change-type"
+          >
+            <option value="">All Change Types</option>
+            <option value="TIGHTENING">Tightening</option>
+            <option value="LOOSENING">Loosening</option>
+            <option value="SCOPE_CHANGE">Scope Change</option>
+            <option value="STYLISTIC">Stylistic</option>
+          </select>
+
+          <select
+            className="filter-select"
+            value={filterPayer}
+            onChange={(event) => {
+              setFilterPayer(event.target.value);
+              restoreFeed();
+            }}
+            id="filter-payer"
+          >
+            <option value="">All Payers</option>
+            {payerOptions.map((payer) => (
+              <option key={payer} value={payer}>
+                {payer}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="filter-select"
+            value={filterServiceLine}
+            onChange={(event) => {
+              setFilterServiceLine(event.target.value);
+              restoreFeed();
+            }}
+            id="filter-service-line"
+          >
+            <option value="">All Service Lines</option>
+            {serviceLineOptions.map((serviceLine) => (
+              <option key={serviceLine} value={serviceLine}>
+                {serviceLine}
+              </option>
+            ))}
+          </select>
+
+          <input
+            type="date"
+            className="filter-select filter-date"
+            value={filterDateFrom}
+            onChange={(event) => {
+              setFilterDateFrom(event.target.value);
+              restoreFeed();
+            }}
+            id="filter-date-from"
+            title="From date"
+          />
+
+          <input
+            type="date"
+            className="filter-select filter-date"
+            value={filterDateTo}
+            onChange={(event) => {
+              setFilterDateTo(event.target.value);
+              restoreFeed();
+            }}
+            id="filter-date-to"
+            title="To date"
+          />
+
+          <button className="btn btn-outline btn-sm" id="filter-clear-btn" onClick={handleClear}>
+            Clear workspace
+          </button>
+        </div>
+
+        <div className="active-filter-strip">
+          <span className={`active-state ${isCleared ? "active-state-cleared" : ""}`}>
+            {isCleared
+              ? "Feed intentionally cleared"
+              : hasAnyFilter
+                ? "Filtered view active"
+                : "Showing all classified events"}
+          </span>
+
+          {!isCleared && hasAnyFilter ? (
+            <div className="active-tags">
+              {filterPayer ? <span className="active-tag">Payer: {filterPayer}</span> : null}
+              {filterServiceLine ? (
+                <span className="active-tag">Service line: {filterServiceLine}</span>
+              ) : null}
+              {filterChangeType ? (
+                <span className="active-tag">
+                  Type: {CHANGE_TYPE_META[filterChangeType]?.label ?? filterChangeType}
+                </span>
+              ) : null}
+              {filterDateFrom ? <span className="active-tag">From: {filterDateFrom}</span> : null}
+              {filterDateTo ? <span className="active-tag">To: {filterDateTo}</span> : null}
+            </div>
+          ) : null}
+        </div>
+      </section>
+
       <section aria-label="Revenue Risk Charts">
         <RevenueRiskChart risk={risk} />
       </section>
 
-      {/* Change Feed */}
       <section className="feed-section">
-        <div className="feed-header">
-          <h2 className="section-title">Live Change Feed</h2>
-
-          <div className="filter-bar">
-            {/* Change type */}
-            <select
-              className="filter-select"
-              value={filterChangeType}
-              onChange={(e) => handleChangeType(e.target.value)}
-              id="filter-change-type"
-            >
-              <option value="">All Types</option>
-              <option value="TIGHTENING">Tightening</option>
-              <option value="LOOSENING">Loosening</option>
-              <option value="SCOPE_CHANGE">Scope Change</option>
-              <option value="STYLISTIC">Stylistic</option>
-            </select>
-
-            {/* Payer */}
-            <select
-              className="filter-select"
-              value={filterPayer}
-              onChange={(e) => handlePayer(e.target.value)}
-              id="filter-payer"
-            >
-              <option value="">All Payers</option>
-              <option value="UHC">UHC</option>
-              <option value="Aetna">Aetna</option>
-              <option value="Cigna">Cigna</option>
-              <option value="Humana">Humana</option>
-            </select>
-
-            {/* Date from */}
-            <input
-              type="date"
-              className="filter-select filter-date"
-              value={filterDateFrom}
-              onChange={(e) => handleDateFrom(e.target.value)}
-              id="filter-date-from"
-              title="From date"
-            />
-
-            {/* Date to */}
-            <input
-              type="date"
-              className="filter-select filter-date"
-              value={filterDateTo}
-              onChange={(e) => handleDateTo(e.target.value)}
-              id="filter-date-to"
-              title="To date"
-            />
-
-            <button
-              className="btn btn-outline btn-sm"
-              id="filter-clear-btn"
-              onClick={handleClear}
-            >
-              Clear
-            </button>
+        <div className="feed-header feed-header-stacked">
+          <div>
+            <p className="section-kicker">Live Feed</p>
+            <h2 className="section-title">Classified policy changes</h2>
           </div>
+          <p className="feed-supporting-copy">
+            Every card summarizes payer, clinical impact, affected codes, confidence, and the
+            fastest next action.
+          </p>
         </div>
 
-        {/* Cleared state: prompt user to pick a filter */}
         {isCleared ? (
           <div className="cleared-state">
-            <span className="cleared-icon">🔍</span>
-            <p className="cleared-title">Feed cleared</p>
+            <span className="cleared-icon">Search the queue</span>
+            <p className="cleared-title">Feed cleared on purpose</p>
             <p className="cleared-hint">
-              Select a payer, change type, or date range above to explore past changes.
+              Select a payer, service line, change type, or date window above to rebuild the
+              working set.
             </p>
           </div>
         ) : (
-          <ChangeFeed events={filteredChanges} loading={loading} />
+          <ChangeFeed events={deferredChanges} loading={loading} />
         )}
       </section>
 
-      {/* System Status */}
-      {status && (
+      {status ? (
         <section className="status-panel">
-          <h2 className="section-title">System Status</h2>
+          <div className="status-panel-header">
+            <div>
+              <p className="section-kicker">Pipeline Health</p>
+              <h2 className="section-title">System status</h2>
+            </div>
+            <span className="status-badge">
+              {status.pending_diffs > 0 ? "Attention required" : "Stable"}
+            </span>
+          </div>
+
           <div className="status-grid">
             <div className="status-item">
-              <span className="status-label">Latest Ingestion</span>
+              <span className="status-label">Latest ingestion run</span>
               <span className="status-value">{status.latest_ingestion_run}</span>
             </div>
             <div className="status-item">
-              <span className="status-label">Latest Change Event</span>
+              <span className="status-label">Latest change event</span>
               <span className="status-value">{status.latest_change_event}</span>
             </div>
             <div className="status-item">
-              <span className="status-label">Processed Today</span>
+              <span className="status-label">Processed today</span>
               <span className="status-value">{status.processed_diffs_today}</span>
             </div>
             <div className="status-item">
-              <span className="status-label">Pending Diffs</span>
+              <span className="status-label">Pending diffs</span>
               <span
-                className="status-value"
-                style={{ color: status.pending_diffs > 0 ? "#f59e0b" : "#22c55e" }}
+                className={`status-value ${status.pending_diffs > 0 ? "status-alert" : "status-ok"}`}
               >
                 {status.pending_diffs}
               </span>
             </div>
           </div>
         </section>
-      )}
+      ) : null}
     </div>
   );
 }

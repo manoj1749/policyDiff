@@ -15,17 +15,19 @@ interface MetricCardProps {
   value: string | number;
   sub?: string;
   accent?: string;
-  icon?: string;
+  eyebrow?: string;
 }
 
-function MetricCard({ label, value, sub, accent, icon }: MetricCardProps) {
+function MetricCard({ label, value, sub, accent, eyebrow }: MetricCardProps) {
   return (
-    <div className="metric-card" style={{ borderTop: `3px solid ${accent ?? "#6366f1"}` }}>
-      {icon && <span className="metric-icon">{icon}</span>}
+    <article className="metric-card" style={{ borderTop: `3px solid ${accent ?? "#3b82f6"}` }}>
+      <div className="metric-card-top">
+        <span className="metric-eyebrow">{eyebrow ?? "Metric"}</span>
+      </div>
       <span className="metric-value">{value}</span>
       <span className="metric-label">{label}</span>
-      {sub && <span className="metric-sub">{sub}</span>}
-    </div>
+      {sub ? <span className="metric-sub">{sub}</span> : null}
+    </article>
   );
 }
 
@@ -33,45 +35,45 @@ export default function RiskSummaryCards({ risk, status, loading }: RiskSummaryC
   if (loading || !risk || !status) {
     return (
       <div className="metrics-grid">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="metric-card skeleton-card" />
+        {[1, 2, 3, 4].map((item) => (
+          <div key={item} className="metric-card skeleton-card metric-skeleton" />
         ))}
       </div>
     );
   }
 
   const tighteningCount =
-    risk.by_change_type.find((c) => c.change_type === "TIGHTENING")?.count ?? 0;
+    risk.by_change_type.find((item) => item.change_type === "TIGHTENING")?.count ?? 0;
 
   return (
     <div className="metrics-grid">
       <MetricCard
         label="Total Revenue at Risk"
         value={formatCurrency(risk.total_revenue_at_risk_usd)}
-        sub="Annualized across all changes"
-        accent="#ef4444"
-        icon="💰"
+        sub="Annualized across the current change inventory"
+        accent="#d97706"
+        eyebrow="Financial"
       />
       <MetricCard
         label="Tightening Changes"
         value={tighteningCount}
-        sub="High-risk coverage restrictions"
-        accent="#f59e0b"
-        icon="⚠️"
+        sub="Most likely to create denial pressure"
+        accent="#dc2626"
+        eyebrow="Utilization"
       />
       <MetricCard
-        label="Senso Briefs Published"
+        label="Published Evidence Briefs"
         value={status.senso_published_count}
-        sub="cited.md evidence documents"
-        accent="#8b5cf6"
-        icon="📄"
+        sub="Senso cited.md outputs available for review"
+        accent="#0f766e"
+        eyebrow="Evidence"
       />
       <MetricCard
         label="Pending Diffs"
         value={status.pending_diffs}
         sub={`Processed today: ${status.processed_diffs_today}`}
-        accent="#06b6d4"
-        icon="🔄"
+        accent="#2563eb"
+        eyebrow="Queue"
       />
     </div>
   );
