@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 _client = genai.Client(api_key=settings.gemini_api_key)
 
 
-@llm(model_name="gemini-2.5-flash", model_provider="google", ml_app="policydiff")
+@llm(model_name=settings.gemini_model, model_provider="google", ml_app="policydiff")
 def call_gemini(prompt: str) -> str:
     """
     Send a prompt to Gemini and return the raw text response.
