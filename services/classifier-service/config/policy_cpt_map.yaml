@@ -1,0 +1,30 @@
+policies:
+  UHC:cardiac-mri:
+    service_line: Cardiology
+    cpt_codes: [75557, 75559, 75561]
+    keywords: [cardiac MRI, myocarditis, cardiomyopathy, echocardiogram, stress test]
+
+  UHC:vagus-nerve-stim:
+    service_line: Neurology
+    cpt_codes: [64568, 64569, 64570]
+    keywords: [vagus nerve stimulation, epilepsy, seizure]
+
+  Aetna:cpb-0761:
+    service_line: Radiology
+    cpt_codes: [73221, 73721]
+    keywords: [MRI extremity, joint, knee, shoulder]
+
+  Aetna:cpb-0352:
+    service_line: Radiology
+    cpt_codes: [71046, 71250]
+    keywords: [diagnostic imaging, chest x-ray, CT thorax]
+
+  Cigna:cardiac-imaging:
+    service_line: Cardiology
+    cpt_codes: [93306, 93454, 75561]
+    keywords: [cardiac imaging, echocardiography, catheterization, cardiac MRI]
+
+  Humana:mri-spine:
+    service_line: Orthopedics
+    cpt_codes: [72141, 72148, 72156, 72158]
+    keywords: [MRI spine, lumbar, cervical, radiculopathy, conservative therapy]
