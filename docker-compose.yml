@@ -1,0 +1,132 @@
+version: "3.9"
+
+# ============================================================
+# PolicyDiff — Docker Compose
+#
+# Dependency order (no circular deps):
+#   clickhouse → ingestion-service
+#   clickhouse → classifier-service
+#   clickhouse → api-dashboard-service
+#   api-dashboard-service → frontend
+# ============================================================
+
+services:
+  # ── ClickHouse ─────────────────────────────────────────────
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: policydiff-clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./infra/clickhouse:/docker-entrypoint-initdb.d
+    environment:
+      CLICKHOUSE_DB: policydiff
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Ingestion Service (Engineer A) ─────────────────────────
+  ingestion-service:
+    build: ./services/ingestion-service
+    container_name: policydiff-ingestion
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+    environment:
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 8123
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+      CLICKHOUSE_DB: policydiff
+      NIMBLE_API_KEY: ${NIMBLE_API_KEY:-}
+      POLL_INTERVAL_MINUTES: ${POLL_INTERVAL_MINUTES:-30}
+      WATCHLIST_PATH: ./config/watchlist.yaml
+    restart: unless-stopped
+
+  # ── Classifier Service (Engineer B) ─────────────────────────
+  classifier-service:
+    build: ./services/classifier-service
+    container_name: policydiff-classifier
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    ports:
+      - "8002:8002"
+    environment:
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 8123
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+      CLICKHOUSE_DB: policydiff
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
+      SENSO_API_KEY: ${SENSO_API_KEY:-}
+      SENSO_ORG_HANDLE: ${SENSO_ORG_HANDLE:-policydiff}
+      DD_API_KEY: ${DD_API_KEY:-}
+      DD_SITE: ${DD_SITE:-datadoghq.com}
+      DD_LLMOBS_ENABLED: ${DD_LLMOBS_ENABLED:-1}
+      DD_LLMOBS_ML_APP: policydiff
+      CLASSIFIER_BATCH_SIZE: ${CLASSIFIER_BATCH_SIZE:-5}
+      CLASSIFIER_POLL_INTERVAL_SECONDS: ${CLASSIFIER_POLL_INTERVAL_SECONDS:-60}
+    command: >
+      sh -c "ddtrace-run uvicorn app.main:app --host 0.0.0.0 --port 8002 2>/dev/null
+             || uvicorn app.main:app --host 0.0.0.0 --port 8002"
+    restart: unless-stopped
+
+  # ── API Dashboard Service (Engineer C — Backend) ─────────────
+  api-dashboard-service:
+    build: ./services/api-dashboard-service/backend
+    container_name: policydiff-api
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    ports:
+      - "8003:8003"
+    environment:
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 8123
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+      CLICKHOUSE_DB: policydiff
+      FRONTEND_REFRESH_INTERVAL_SECONDS: ${FRONTEND_REFRESH_INTERVAL_SECONDS:-10}
+      # Optional x402
+      ENABLE_X402: ${ENABLE_X402:-false}
+      WALLET_ADDRESS: ${WALLET_ADDRESS:-0x0000000000000000000000000000000000000000}
+      X402_PRICE_USDC: ${X402_PRICE_USDC:-2000000}
+      # Optional Luminai
+      ENABLE_LUMINAI: ${ENABLE_LUMINAI:-false}
+      LUMINAI_WEBHOOK_URL: ${LUMINAI_WEBHOOK_URL:-https://httpbin.org/post}
+      # Service discovery
+      INGESTION_SERVICE_URL: http://ingestion-service:8001
+      CLASSIFIER_SERVICE_URL: http://classifier-service:8002
+      # Datadog (forwarded for status card)
+      DD_API_KEY: ${DD_API_KEY:-}
+    restart: unless-stopped
+
+  # ── Frontend (Engineer C — Next.js) ─────────────────────────
+  frontend:
+    build:
+      context: ./services/api-dashboard-service/frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8003
+        NEXT_PUBLIC_REFRESH_INTERVAL_SECONDS: "10"
+    container_name: policydiff-frontend
+    depends_on:
+      - api-dashboard-service
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8003}
+      NEXT_PUBLIC_REFRESH_INTERVAL_SECONDS: ${NEXT_PUBLIC_REFRESH_INTERVAL_SECONDS:-10}
+    restart: unless-stopped
+
+volumes:
+  clickhouse_data:
