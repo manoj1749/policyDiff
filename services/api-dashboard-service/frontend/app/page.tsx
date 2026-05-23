@@ -26,6 +26,44 @@ const ZERO_RISK: RiskSummary = {
   by_service_line: [],
   by_payer: [],
 };
+
+// Derives a RiskSummary purely from a list of events (used for post-clear demo view).
+function computeRiskFromEvents(events: ChangeEventSummary[]): RiskSummary {
+  const ctMap = new Map<string, { count: number; revenue: number }>();
+  const slMap = new Map<string, { count: number; revenue: number }>();
+  const pyMap = new Map<string, { count: number; revenue: number }>();
+  let total = 0;
+  for (const e of events) {
+    const rev = e.revenue_at_risk_usd ?? 0;
+    total += rev;
+    const ct = ctMap.get(e.change_type) ?? { count: 0, revenue: 0 };
+    ctMap.set(e.change_type, { count: ct.count + 1, revenue: ct.revenue + rev });
+    const sl = slMap.get(e.service_line) ?? { count: 0, revenue: 0 };
+    slMap.set(e.service_line, { count: sl.count + 1, revenue: sl.revenue + rev });
+    const py = pyMap.get(e.payer) ?? { count: 0, revenue: 0 };
+    pyMap.set(e.payer, { count: py.count + 1, revenue: py.revenue + rev });
+  }
+  const byRev = <T extends { revenue_at_risk_usd: number }>(arr: T[]) =>
+    arr.sort((a, b) => b.revenue_at_risk_usd - a.revenue_at_risk_usd);
+  return {
+    total_revenue_at_risk_usd: total,
+    by_change_type: byRev(
+      [...ctMap.entries()].map(([change_type, { count, revenue }]) => ({
+        change_type, count, revenue_at_risk_usd: revenue,
+      }))
+    ),
+    by_service_line: byRev(
+      [...slMap.entries()].map(([service_line, { count, revenue }]) => ({
+        service_line, count, revenue_at_risk_usd: revenue,
+      }))
+    ),
+    by_payer: byRev(
+      [...pyMap.entries()].map(([payer, { count, revenue }]) => ({
+        payer, count, revenue_at_risk_usd: revenue,
+      }))
+    ),
+  };
+}
 import RiskSummaryCards from "@/components/RiskSummaryCards";
 import RevenueRiskChart from "@/components/RevenueRiskChart";
 import ChangeFeed from "@/components/ChangeFeed";
@@ -118,11 +156,15 @@ export default function HomePage() {
 
   const deferredChanges = useDeferredValue(filteredChanges);
 
-  // When cleared: metrics show zero. When demo-after-clear: metrics reflect only new event.
-  const displayRisk = isCleared ? ZERO_RISK : (risk ?? ZERO_RISK);
-  const topPayer = isCleared ? null : (displayRisk.by_payer?.[0] ?? null);
-  const topServiceLine = isCleared ? null : (displayRisk.by_service_line?.[0] ?? null);
-  const topChangeType = isCleared ? null : (displayRisk.by_change_type?.[0] ?? null);
+  // cleared → zeros; post-clear demo → derive from the visible events only; normal → server aggregate
+  const displayRisk = isCleared
+    ? ZERO_RISK
+    : knownEventIds !== null
+      ? computeRiskFromEvents(filteredChanges)
+      : (risk ?? ZERO_RISK);
+  const topPayer = displayRisk.by_payer[0] ?? null;
+  const topServiceLine = displayRisk.by_service_line[0] ?? null;
+  const topChangeType = displayRisk.by_change_type[0] ?? null;
 
   function handleClear() {
     setFilterChangeType("");
