@@ -27,6 +27,13 @@ import ChangeFeed from "@/components/ChangeFeed";
 
 const LS_KEY = "policydiff_feed_cleared";
 
+/** Zero-value risk shown when the feed is intentionally cleared. */
+const ZERO_RISK = {
+  total_revenue_at_risk_usd: 0,
+  by_service_line: [],
+  by_change_type: [],
+};
+
 export default function HomePage() {
   const [allChanges, setAllChanges] = useState<ChangeEventSummary[]>([]);
   const [risk, setRisk] = useState<RiskSummary | null>(null);
@@ -70,8 +77,9 @@ export default function HomePage() {
   const hasAnyFilter =
     !!filterChangeType || !!filterPayer || !!filterDateFrom || !!filterDateTo;
 
-  // When cleared, show zero metrics — only real data if feed is visible
-  const displayRisk = isCleared ? null : risk;
+  // When cleared: show zeros, never skeletons
+  const displayRisk = isCleared ? ZERO_RISK : risk;
+  const displayLoading = isCleared ? false : loading;
 
   // Derived: apply all active filters synchronously
   const filteredChanges: ChangeEventSummary[] = isCleared
@@ -198,7 +206,7 @@ export default function HomePage() {
 
       {/* Metric Cards — zeroed when cleared */}
       <section aria-label="Risk Summary Metrics">
-        <RiskSummaryCards risk={displayRisk} status={status} loading={loading} />
+        <RiskSummaryCards risk={displayRisk} status={status} loading={displayLoading} />
       </section>
 
       {/* Charts — zeroed when cleared */}
