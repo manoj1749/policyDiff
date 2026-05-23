@@ -1,11 +1,12 @@
 /**
  * lib/api.ts — typed API client for the PolicyDiff dashboard.
  *
- * All functions call the FastAPI backend at NEXT_PUBLIC_API_BASE_URL.
- * Refresh interval is driven by NEXT_PUBLIC_REFRESH_INTERVAL_SECONDS.
+ * In production (Vercel) API_BASE is "" so all calls go to /api/... which
+ * next.config.js rewrites to the Railway backend — no CORS needed.
+ * In local dev, calls hit localhost:8003 directly via the rewrite too.
  */
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8003";
+export const API_BASE = "";
 export const REFRESH_INTERVAL_MS =
   (Number(process.env.NEXT_PUBLIC_REFRESH_INTERVAL_SECONDS ?? "10")) * 1000;
 

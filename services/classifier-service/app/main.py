@@ -13,11 +13,16 @@ CLASSIFIER_POLL_INTERVAL_SECONDS.
 from __future__ import annotations
 
 import logging
+import os
 import traceback
 from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, HTTPException
+
+# On Vercel, persistent background threads don't survive between requests.
+# Vercel Cron calls POST /classify/run-once on the configured schedule instead.
+_ON_VERCEL = bool(os.getenv("VERCEL"))
 
 from app.classifier import classify_diff
 from app.clickhouse_repo import (
@@ -171,22 +176,26 @@ def _scheduled_job() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup: init Datadog, start scheduler. Shutdown: stop scheduler."""
+    """Startup: init Datadog, optionally start scheduler. Shutdown: stop scheduler."""
     init_datadog(ml_app=settings.dd_llmobs_ml_app)
-    _scheduler.add_job(
-        _scheduled_job,
-        "interval",
-        seconds=settings.poll_interval_seconds,
-        id="classify_poll",
-        replace_existing=True,
-    )
-    _scheduler.start()
-    logger.info(
-        "Classifier scheduler started (interval=%ds).", settings.poll_interval_seconds
-    )
+    if _ON_VERCEL:
+        logger.info("Running on Vercel — in-process scheduler disabled; using Vercel Cron.")
+    else:
+        _scheduler.add_job(
+            _scheduled_job,
+            "interval",
+            seconds=settings.poll_interval_seconds,
+            id="classify_poll",
+            replace_existing=True,
+        )
+        _scheduler.start()
+        logger.info(
+            "Classifier scheduler started (interval=%ds).", settings.poll_interval_seconds
+        )
     yield
-    _scheduler.shutdown(wait=False)
-    logger.info("Classifier scheduler stopped.")
+    if not _ON_VERCEL:
+        _scheduler.shutdown(wait=False)
+        logger.info("Classifier scheduler stopped.")
 
 
 app = FastAPI(
