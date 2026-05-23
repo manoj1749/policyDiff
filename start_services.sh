@@ -11,6 +11,18 @@ set +a
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
+# ── Kill any stale instances first ───────────────────────────
+echo "Stopping any previous PolicyDiff processes..."
+pkill -f "uvicorn app.main:app" 2>/dev/null
+pkill -f "next.*dev" 2>/dev/null
+pkill -f "next-server" 2>/dev/null
+# Force-free ports 8002, 8003, 3000
+for port in 8002 8003 3000; do
+  pid=$(lsof -ti:$port 2>/dev/null)
+  [ -n "$pid" ] && kill -9 $pid 2>/dev/null && echo "  Freed :$port (pid $pid)"
+done
+sleep 2
+
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo " PolicyDiff — starting all services"
 echo " Env: $ROOT/.env"
