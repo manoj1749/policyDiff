@@ -25,6 +25,8 @@ import RiskSummaryCards from "@/components/RiskSummaryCards";
 import RevenueRiskChart from "@/components/RevenueRiskChart";
 import ChangeFeed from "@/components/ChangeFeed";
 
+const LS_KEY = "policydiff_feed_cleared";
+
 export default function HomePage() {
   const [allChanges, setAllChanges] = useState<ChangeEventSummary[]>([]);
   const [risk, setRisk] = useState<RiskSummary | null>(null);
@@ -41,10 +43,25 @@ export default function HomePage() {
   const [filterDateTo, setFilterDateTo] = useState("");
 
   /**
-   * isCleared: when true, the feed is intentionally blank.
-   * Cleared by clicking "Clear". Reset back to false when any filter is explicitly set.
+   * clearKey: incrementing this forces date <input type="date"> elements to
+   * remount, which is the only reliable way to visually reset them in all browsers.
    */
-  const [isCleared, setIsCleared] = useState(false);
+  const [clearKey, setClearKey] = useState(0);
+
+  /**
+   * isCleared: persisted in localStorage so page reloads respect the cleared state.
+   * true  → feed blank until a filter is explicitly selected
+   * false → feed shows all / filtered events
+   */
+  const [isCleared, setIsCleared] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(LS_KEY) === "true";
+  });
+
+  // Sync isCleared → localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem(LS_KEY, String(isCleared));
+  }, [isCleared]);
 
   const hasAnyFilter =
     !!filterChangeType || !!filterPayer || !!filterDateFrom || !!filterDateTo;
@@ -93,13 +110,14 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [refresh]);
 
-  // Clear: hide everything. User must explicitly pick a filter to see events.
+  // Clear: hide everything + reset all inputs visually + persist across reloads
   const handleClear = () => {
     setFilterChangeType("");
     setFilterPayer("");
     setFilterDateFrom("");
     setFilterDateTo("");
     setIsCleared(true);
+    setClearKey((k) => k + 1); // forces date inputs to remount and visually reset
   };
 
   // Any filter change un-clears the feed
@@ -126,7 +144,7 @@ export default function HomePage() {
     try {
       const res = await triggerDemo();
       setDemoMessage(res.message);
-      // Restore feed and refresh after a moment
+      // Restore feed (clear the cleared state) so new event is visible
       setIsCleared(false);
       setTimeout(refresh, 3000);
     } catch {
@@ -217,6 +235,7 @@ export default function HomePage() {
 
             {/* Date from */}
             <input
+              key={`date-from-${clearKey}`}
               type="date"
               className="filter-select filter-date"
               value={filterDateFrom}
@@ -227,6 +246,7 @@ export default function HomePage() {
 
             {/* Date to */}
             <input
+              key={`date-to-${clearKey}`}
               type="date"
               className="filter-select filter-date"
               value={filterDateTo}
