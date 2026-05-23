@@ -1,15 +1,4 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python",
-      "config": {
-        "maxLambdaSize": "50mb",
-        "includeFiles": ["app/**", "config/**", "prompts/**"]
-      }
-    }
-  ],
-  "routes": [{ "src": "/(.*)", "dest": "/api/index.py" }],
-  "crons": [{ "path": "/classify/run-once", "schedule": "* * * * *" }]
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }],
+  "crons": [{ "path": "/classify/run-once", "schedule": "0 0 * * *" }]
 }
