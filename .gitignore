@@ -52,3 +52,5 @@ tsconfig.tsbuildinfo
 .agents/
 .claude/skills/
 skills-lock.json
+.gstack/
+.playwright-mcp/
