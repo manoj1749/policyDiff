@@ -32,6 +32,7 @@ from app.clickhouse_repo import (
     insert_classification_error,
     mark_error,
     mark_processed,
+    seed_claims_ref_if_empty,
 )
 from app.config_loader import settings
 from app.datadog_setup import init_datadog, workflow
@@ -170,6 +171,7 @@ _scheduler = BackgroundScheduler()
 
 
 def _scheduled_job() -> None:
+    seed_claims_ref_if_empty()
     logger.info("Scheduler: running process_pending_diffs.")
     process_pending_diffs()
 
@@ -187,6 +189,7 @@ async def lifespan(app: FastAPI):
     The call here is retained as a safe no-op (LLMObs.enable is idempotent).
     """
     init_datadog(ml_app=settings.dd_llmobs_ml_app)
+    seed_claims_ref_if_empty()
     if _ON_VERCEL:
         logger.info("Running on Vercel — in-process scheduler disabled; using Vercel Cron.")
     else:

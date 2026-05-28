@@ -92,6 +92,34 @@ def get_candidate_by_id(diff_id: str) -> dict | None:
 # Revenue
 # ---------------------------------------------------------------------------
 
+def seed_claims_ref_if_empty() -> bool:
+    """
+    Populate claims_ref from CMS Medicare open data if the table is empty.
+
+    CPT codes are read from policy_cpt_map.yaml so coverage stays in sync
+    with the watchlist. Returns True if rows were inserted.
+    """
+    client = _client()
+    result = client.query("SELECT count() AS n FROM policydiff.claims_ref")
+    count = list(result.named_results())[0]["n"]
+    if count > 0:
+        logger.info("claims_ref already has %d rows — skipping seed.", count)
+        return False
+
+    from app.cms_rates import build_claims_ref_rows
+    rows = build_claims_ref_rows(settings.policy_cpt_map_path)
+    if not rows:
+        logger.error("CMS fetch returned no rows — claims_ref left empty.")
+        return False
+
+    client.insert(
+        "policydiff.claims_ref",
+        rows,
+        column_names=["cpt", "service_line", "avg_reimbursement_usd", "claim_count_90d", "payer"],
+    )
+    logger.info("Seeded %d CPT codes into claims_ref from CMS data.", len(rows))
+    return True
+
 
 def query_revenue_at_risk(cpt_codes: list[str]) -> float:
     """Sum annualized revenue at risk for given CPT codes from claims_ref."""
