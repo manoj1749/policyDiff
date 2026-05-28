@@ -255,9 +255,7 @@ export default function HomePage() {
         <header className="main-header">
           <div className="mh-left">
             <h1 className="main-title">Payer Policy Monitor</h1>
-            <span className="main-sub">
-              AI-classified policy changes with revenue impact — updated every 10s
-            </span>
+            <span className="main-sub">AI-classified · revenue impact · 10s refresh</span>
           </div>
           {status?.datadog_enabled && (
             <span className="header-pill">Datadog tracing</span>

@@ -66,15 +66,9 @@ export default function ChangeFeed({ events, loading }: ChangeFeedProps) {
             style={{ borderLeft: `3px solid ${meta.color}` }}
           >
             <div className="ct-col-type">
-              <span
-                className="badge"
-                style={{
-                  color: meta.color,
-                  background: meta.bg,
-                  border: `1px solid ${meta.border}`,
-                }}
-              >
-                {meta.label}
+              <span className="change-tag">
+                <span className="change-dot" style={{ background: meta.color }} />
+                <span className="change-label" style={{ color: meta.color }}>{meta.label}</span>
               </span>
             </div>
 
