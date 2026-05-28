@@ -7,7 +7,7 @@ policies:
     source_type: html
     service_line: Cardiology
     default_cpt_codes: ["75557", "75559", "75561"]
-    active: true
+    active: false
 
   - payer: UHC
     policy_id: vagus-nerve-stim
@@ -16,7 +16,7 @@ policies:
     source_type: html
     service_line: Neurology
     default_cpt_codes: ["64568", "64569", "64570"]
-    active: true
+    active: false
 
   - payer: UHC
     policy_id: coronary-cta
@@ -25,7 +25,7 @@ policies:
     source_type: html
     service_line: Cardiology
     default_cpt_codes: ["75571", "75572", "75573"]
-    active: true
+    active: false
 
   - payer: UHC
     policy_id: sleep-testing
@@ -34,7 +34,7 @@ policies:
     source_type: html
     service_line: Pulmonology
     default_cpt_codes: ["95800", "95801", "95806", "95810"]
-    active: true
+    active: false
 
   - payer: UHC
     policy_id: prior-auth-list
@@ -43,7 +43,7 @@ policies:
     source_type: html
     service_line: Revenue Cycle
     default_cpt_codes: []
-    active: true
+    active: false
 
   # ── Aetna ─────────────────────────────────────────────────────────────────
   - payer: Aetna
@@ -146,7 +146,7 @@ policies:
     source_type: pdf
     service_line: Cardiology
     default_cpt_codes: ["75557", "75559", "75561"]
-    active: true
+    active: false
 
   - payer: Anthem
     policy_id: mri-spine-anthem
@@ -155,7 +155,7 @@ policies:
     source_type: pdf
     service_line: Radiology
     default_cpt_codes: ["72141", "72148", "72156"]
-    active: true
+    active: false
 
   # ── Molina ────────────────────────────────────────────────────────────────
   - payer: Molina
@@ -175,7 +175,7 @@ policies:
     source_type: pdf
     service_line: Radiology
     default_cpt_codes: ["70553", "72148", "73721", "75561"]
-    active: true
+    active: false
 
   # ── Centene ───────────────────────────────────────────────────────────────
   - payer: Centene
@@ -185,4 +185,4 @@ policies:
     source_type: pdf
     service_line: Radiology
     default_cpt_codes: ["72148", "73721", "70553"]
-    active: true
+    active: false
