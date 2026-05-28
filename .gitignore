@@ -47,3 +47,8 @@ clickhouse_data/
 
 # TypeScript build cache
 tsconfig.tsbuildinfo
+
+# Local agent skill tooling (installed globally, not project deps)
+.agents/
+.claude/skills/
+skills-lock.json
