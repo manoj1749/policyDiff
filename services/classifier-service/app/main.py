@@ -136,6 +136,7 @@ def process_pending_diffs(limit: int | None = None) -> dict:
     Fetch up to `limit` (or CLASSIFIER_BATCH_SIZE) pending diff candidates and
     process each one. Decorated with @workflow for Datadog tracing.
     """
+    seed_claims_ref_if_empty()
     candidates = get_pending_candidates(limit=limit)
     processed = 0
     published = 0
