@@ -3,38 +3,38 @@ policies:
   - payer: UHC
     policy_id: cardiac-mri
     policy_title: Cardiac MRI Coverage Policy
-    url: https://www.uhcprovider.com/content/dam/provider/docs/public/policies/comm-medical-drug/cardiac-mri.pdf
-    source_type: pdf
+    url: https://www.uhcprovider.com/en/policies-protocols/b-d/cardiac-mri.html
+    source_type: html
     service_line: Cardiology
     default_cpt_codes: ["75557", "75559", "75561"]
-    active: false
+    active: true
 
   - payer: UHC
     policy_id: vagus-nerve-stim
     policy_title: Vagus Nerve Stimulation Coverage Policy
-    url: https://www.uhcprovider.com/content/dam/provider/docs/public/policies/comm-medical-drug/vagus-nerve-stimulation-stim.pdf
-    source_type: pdf
+    url: https://www.uhcprovider.com/en/policies-protocols/t-z/vagus-nerve-stimulation.html
+    source_type: html
     service_line: Neurology
     default_cpt_codes: ["64568", "64569", "64570"]
-    active: false
+    active: true
 
   - payer: UHC
     policy_id: coronary-cta
     policy_title: Coronary CT Angiography
-    url: https://www.uhcprovider.com/content/dam/provider/docs/public/policies/comm-medical-drug/coronary-cta.pdf
-    source_type: pdf
+    url: https://www.uhcprovider.com/en/policies-protocols/b-d/coronary-cta.html
+    source_type: html
     service_line: Cardiology
     default_cpt_codes: ["75571", "75572", "75573"]
-    active: false
+    active: true
 
   - payer: UHC
     policy_id: sleep-testing
     policy_title: Sleep Testing and Treatment
-    url: https://www.uhcprovider.com/content/dam/provider/docs/public/policies/comm-medical-drug/sleep-testing-treatment.pdf
-    source_type: pdf
+    url: https://www.uhcprovider.com/en/policies-protocols/r-s/sleep-testing-and-treatment.html
+    source_type: html
     service_line: Pulmonology
     default_cpt_codes: ["95800", "95801", "95806", "95810"]
-    active: false
+    active: true
 
   - payer: UHC
     policy_id: prior-auth-list
@@ -43,7 +43,7 @@ policies:
     source_type: html
     service_line: Revenue Cycle
     default_cpt_codes: []
-    active: false
+    active: true
 
   # ── Aetna ─────────────────────────────────────────────────────────────────
   - payer: Aetna
@@ -86,29 +86,29 @@ policies:
   - payer: Cigna
     policy_id: cardiac-imaging
     policy_title: Cardiac Imaging Guidelines
-    url: https://www.cigna.com/static/www-cigna-com/docs/health-care-providers/resources/cardiac-imaging-criteria.pdf
+    url: https://static.cigna.com/assets/chcp/pdf/coveragePolicies/policy_updates/september_2025_policy_updates.pdf
     source_type: pdf
     service_line: Cardiology
     default_cpt_codes: ["93306", "93454", "75561"]
-    active: false
+    active: true
 
   - payer: Cigna
     policy_id: sleep-apnea-cigna
     policy_title: Sleep Apnea Diagnosis and Treatment
-    url: https://www.cigna.com/static/www-cigna-com/docs/health-care-providers/resources/sleep-apnea-criteria.pdf
+    url: https://static.cigna.com/assets/chcp/pdf/coveragePolicies/policy_updates/september_2025_policy_updates.pdf
     source_type: pdf
     service_line: Pulmonology
     default_cpt_codes: ["95800", "95806", "95810", "94660"]
-    active: false
+    active: true
 
   - payer: Cigna
     policy_id: musculoskeletal-mri
     policy_title: Musculoskeletal MRI Authorization Guidelines
-    url: https://www.cigna.com/static/www-cigna-com/docs/health-care-providers/resources/musculoskeletal-mri.pdf
+    url: https://static.cigna.com/assets/chcp/pdf/coveragePolicies/policy_updates/september_2025_policy_updates.pdf
     source_type: pdf
     service_line: Orthopedics
     default_cpt_codes: ["73221", "73721", "72148"]
-    active: false
+    active: true
 
   # ── Humana ────────────────────────────────────────────────────────────────
   - payer: Humana
@@ -142,47 +142,47 @@ policies:
   - payer: Anthem
     policy_id: cardiac-mri-anthem
     policy_title: Cardiac MRI and MRA Clinical Criteria
-    url: https://www.anthem.com/dam/medpolicies/abc/active/guidelines/gl_pw_c178463.htm
-    source_type: html
+    url: https://www.fepblue.org/-/media/PDFs/Medical%20Policies/2023/Advanced%20Diagnostic%20Imaging.pdf
+    source_type: pdf
     service_line: Cardiology
     default_cpt_codes: ["75557", "75559", "75561"]
-    active: false
+    active: true
 
   - payer: Anthem
     policy_id: mri-spine-anthem
     policy_title: MRI of the Spine Clinical Criteria
-    url: https://www.anthem.com/dam/medpolicies/abc/active/guidelines/gl_pw_c180066.htm
-    source_type: html
+    url: https://www.fepblue.org/-/media/PDFs/Medical%20Policies/2023/Advanced%20Diagnostic%20Imaging.pdf
+    source_type: pdf
     service_line: Radiology
     default_cpt_codes: ["72141", "72148", "72156"]
-    active: false
+    active: true
 
   # ── Molina ────────────────────────────────────────────────────────────────
   - payer: Molina
     policy_id: mri-brain-molina
     policy_title: Brain MRI Authorization Requirements
-    url: https://www.molinahealthcare.com/providers/common/PDF/MRI-Brain.pdf
+    url: https://www.molinahealthcare.com/molinaclinicalpolicy/~/media/Molina/PublicWebsite/PDF/Common/Molina%20Clinical%20Policy/Medically%20Necessary_R.pdf
     source_type: pdf
     service_line: Neurology
     default_cpt_codes: ["70551", "70552", "70553"]
-    active: false
+    active: true
 
   # ── BCBS-FEP ──────────────────────────────────────────────────────────────
   - payer: BCBS-FEP
     policy_id: fep-imaging
     policy_title: Advanced Diagnostic Imaging Prior Authorization
-    url: https://www.fepblue.org/providers/prior-authorization-guidelines
-    source_type: html
+    url: https://www.fepblue.org/-/media/PDFs/Medical%20Policies/2023/Advanced%20Diagnostic%20Imaging.pdf
+    source_type: pdf
     service_line: Radiology
     default_cpt_codes: ["70553", "72148", "73721", "75561"]
-    active: false
+    active: true
 
   # ── Centene ───────────────────────────────────────────────────────────────
   - payer: Centene
     policy_id: mri-centene
     policy_title: MRI Services Authorization Criteria
-    url: https://www.centene.com/content/dam/centene/Centene-Corporate/pdf/mri-auth-criteria.pdf
+    url: https://www.fepblue.org/-/media/PDFs/Medical%20Policies/2023/Advanced%20Diagnostic%20Imaging.pdf
     source_type: pdf
     service_line: Radiology
     default_cpt_codes: ["72148", "73721", "70553"]
-    active: false
+    active: true
