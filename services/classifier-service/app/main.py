@@ -1,14 +1,14 @@
 """
-main.py — FastAPI entry point for the PolicyDiff classifier-service.
+main.py — PolicyDiff classifier-service entry point.
 
-Endpoints:
-  GET  /health
-  POST /classify/run-once
-  POST /classify/diff/{diff_id}
-  GET  /classify/pending
+Supports two launch modes:
+  1. FastAPI server (uvicorn app.main:app) — exposes HTTP endpoints and
+     runs an APScheduler loop for continuous polling.
+  2. Direct cron invocation (Railway custom start command) — imports
+     process_pending_diffs and calls it once, then exits.
 
-Background APScheduler loop calls process_pending_diffs() every
-CLASSIFIER_POLL_INTERVAL_SECONDS.
+In both cases, init_datadog() is called at module import time so Datadog
+LLM Observability is active before any @workflow span is created.
 """
 from __future__ import annotations
 
@@ -43,6 +43,11 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+# ── Datadog LLM Observability — initialise at import time ────────────────────
+# Must happen before any @workflow/@llm decorated function is called.
+# LLMObs.enable() is idempotent — safe to call again inside lifespan.
+init_datadog(ml_app=settings.dd_llmobs_ml_app)
 
 
 # ---------------------------------------------------------------------------
@@ -176,7 +181,11 @@ def _scheduled_job() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup: init Datadog, optionally start scheduler. Shutdown: stop scheduler."""
+    """Startup: optionally start scheduler. Shutdown: stop scheduler.
+
+    Note: init_datadog() is already called at module import time above.
+    The call here is retained as a safe no-op (LLMObs.enable is idempotent).
+    """
     init_datadog(ml_app=settings.dd_llmobs_ml_app)
     if _ON_VERCEL:
         logger.info("Running on Vercel — in-process scheduler disabled; using Vercel Cron.")
