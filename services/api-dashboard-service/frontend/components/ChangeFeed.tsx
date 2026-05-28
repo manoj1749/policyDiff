@@ -12,10 +12,7 @@ interface ChangeFeedProps {
 
 function formatTimestamp(value: string) {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
+  if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
@@ -28,8 +25,8 @@ export default function ChangeFeed({ events, loading }: ChangeFeedProps) {
   if (loading) {
     return (
       <div className="feed-skeleton">
-        {[1, 2, 3].map((item) => (
-          <div key={item} className="skeleton-card feed-skeleton-card" />
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="skeleton-card feed-skeleton-card" />
         ))}
       </div>
     );
@@ -40,95 +37,95 @@ export default function ChangeFeed({ events, loading }: ChangeFeedProps) {
       <div className="empty-feed">
         <p className="empty-title">No classified policy changes yet.</p>
         <p className="empty-hint">
-          Run the demo trigger or wait for the next live ingestion cycle to populate this queue.
+          Run the demo trigger or wait for the next live ingestion cycle.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="change-feed">
+    <div className="changes-table">
+      <div className="ct-head">
+        <span className="ct-col-type">Type</span>
+        <span className="ct-col-policy">Policy</span>
+        <span className="ct-col-payer">Payer</span>
+        <span className="ct-col-codes">CPT codes</span>
+        <span className="ct-col-rev">Revenue at risk</span>
+        <span className="ct-col-conf">Confidence</span>
+        <span className="ct-col-date">Date</span>
+        <span className="ct-col-action" />
+      </div>
+
       {events.map((event) => {
         const meta = CHANGE_TYPE_META[event.change_type] ?? CHANGE_TYPE_META.STYLISTIC;
 
         return (
-          <article
+          <div
             key={event.event_id}
-            className="change-card"
-            style={{ borderLeft: `4px solid ${meta.color}` }}
+            className="ct-row"
+            style={{ borderLeft: `3px solid ${meta.color}` }}
           >
-            <div className="card-header">
-              <div className="card-header-left">
-                <span
-                  className="badge"
-                  style={{
-                    color: meta.color,
-                    background: meta.bg,
-                    border: `1px solid ${meta.border}`,
-                  }}
+            <div className="ct-col-type">
+              <span
+                className="badge"
+                style={{
+                  color: meta.color,
+                  background: meta.bg,
+                  border: `1px solid ${meta.border}`,
+                }}
+              >
+                {meta.label}
+              </span>
+            </div>
+
+            <div className="ct-col-policy">
+              <span className="ct-title">{event.policy_title}</span>
+              <span className="ct-summary">{event.change_summary}</span>
+            </div>
+
+            <div className="ct-col-payer">
+              <span className="payer-chip">{event.payer}</span>
+              <span className="service-line-chip">{event.service_line}</span>
+            </div>
+
+            <div className="ct-col-codes">
+              {event.cpt_codes_affected.slice(0, 3).map((code) => (
+                <span key={code} className="code-chip">{code}</span>
+              ))}
+              {event.cpt_codes_affected.length > 3 && (
+                <span className="code-more">+{event.cpt_codes_affected.length - 3}</span>
+              )}
+            </div>
+
+            <div className="ct-col-rev">
+              <span className="rev-amount">{formatCurrency(event.revenue_at_risk_usd)}</span>
+            </div>
+
+            <div className="ct-col-conf">
+              <span className="conf-value">{(event.confidence * 100).toFixed(0)}%</span>
+            </div>
+
+            <div className="ct-col-date">
+              <span className="ct-date">{formatTimestamp(event.created_at)}</span>
+            </div>
+
+            <div className="ct-col-action">
+              {event.cited_md_url && (
+                <a
+                  href={event.cited_md_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="row-link"
+                  title="Open Senso brief"
                 >
-                  {meta.label}
-                </span>
-                <span className="payer-chip">{event.payer}</span>
-                <span className="service-line-chip">{event.service_line}</span>
-                <span className="status-chip">{event.status}</span>
-              </div>
-              <span className="card-ts">{formatTimestamp(event.created_at)}</span>
+                  Brief
+                </a>
+              )}
+              <Link href={`/changes/${event.event_id}`} className="row-link row-link-primary">
+                Review →
+              </Link>
             </div>
-
-            <div className="card-body">
-              <div className="card-main">
-                <h3 className="card-title">{event.policy_title}</h3>
-                <p className="card-summary">{event.change_summary}</p>
-                <p className="card-copy">{event.clinical_impact}</p>
-
-                {event.cpt_codes_affected.length ? (
-                  <div className="card-codes">
-                    <span className="meta-label">Affected CPT codes</span>
-                    <div className="code-chip-row">
-                      {event.cpt_codes_affected.map((code) => (
-                        <span key={code} className="code-chip">
-                          {code}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-
-              <aside className="card-rail">
-                <div className="rail-metric">
-                  <span className="meta-label">Revenue at risk</span>
-                  <span className="rail-value rail-value-risk">
-                    {formatCurrency(event.revenue_at_risk_usd)}
-                  </span>
-                </div>
-                <div className="rail-metric">
-                  <span className="meta-label">Confidence</span>
-                  <span className="rail-value">{(event.confidence * 100).toFixed(0)}%</span>
-                </div>
-              </aside>
-            </div>
-
-            <div className="card-footer">
-              <div className="card-actions">
-                {event.cited_md_url ? (
-                  <a
-                    href={event.cited_md_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-senso"
-                    title="Open Senso cited.md evidence brief"
-                  >
-                    Open Senso brief
-                  </a>
-                ) : null}
-                <Link href={`/changes/${event.event_id}`} className="btn btn-details">
-                  Review evidence
-                </Link>
-              </div>
-            </div>
-          </article>
+          </div>
         );
       })}
     </div>
